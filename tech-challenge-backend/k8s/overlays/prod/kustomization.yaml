@@ -1,0 +1,21 @@
+# Produção: namespace prod (criado pelo infra-k8s), HPA de 2 a 6 réplicas
+# (ADR-007), NodePort 30080 (padrão da base).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - hpa.yaml
+
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: false
+
+configMapGenerator:
+  - name: tech-challenge-config
+    behavior: merge
+    literals:
+      - APP_ENVIRONMENT=prod

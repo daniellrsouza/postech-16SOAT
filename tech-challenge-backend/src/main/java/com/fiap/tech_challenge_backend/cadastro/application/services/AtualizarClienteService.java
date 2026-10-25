@@ -48,7 +48,8 @@ public class AtualizarClienteService implements AtualizarClienteUseCase {
                 clienteAtualizado.getNumero(),
                 clienteAtualizado.getComplemento(),
                 clienteAtualizado.getCidade(),
-                clienteAtualizado.getEstado()
+                clienteAtualizado.getEstado(),
+                clienteAtualizado.getStatus() != null ? clienteAtualizado.getStatus().name() : null
         );
     }
 }

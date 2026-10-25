@@ -80,7 +80,8 @@ public class CadastroClienteService implements CadastrarClienteUseCase {
                 clienteCadastrado.getNumero(),
                 clienteCadastrado.getComplemento(),
                 clienteCadastrado.getCidade(),
-                clienteCadastrado.getEstado()
+                clienteCadastrado.getEstado(),
+                clienteCadastrado.getStatus() != null ? clienteCadastrado.getStatus().name() : null
         );
     }
 

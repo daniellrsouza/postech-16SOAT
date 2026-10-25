@@ -29,7 +29,8 @@ public class BuscarClienteService implements BuscarClienteUseCase {
                         c.getRua(),
                         c.getComplemento(),
                         c.getCidade(),
-                        c.getEstado()))
+                        c.getEstado(),
+                        c.getStatus() != null ? c.getStatus().name() : null))
                 .orElseThrow(() -> new ClienteNaoEncontradoException(cpfCnpj));
     }
 }

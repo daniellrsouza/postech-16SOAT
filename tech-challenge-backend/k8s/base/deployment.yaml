@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tech-challenge-app
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: tech-challenge-app
+  template:
+    metadata:
+      labels:
+        app: tech-challenge-app
+    spec:
+      containers:
+        - name: app
+          # Trocada pelo pipeline: <ECR>/tech-challenge-backend:<sha do commit>.
+          image: tech-challenge-backend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            # Configuração não sensível do ambiente (overlay).
+            - configMapRef:
+                name: tech-challenge-config
+            # Criado pelo pipeline a partir do SSM: datasource do RDS, JWT_SECRET
+            # do ambiente e credenciais de integrações.
+            - secretRef:
+                name: tech-challenge-secrets
+          # Flyway e conexão com o RDS no primeiro boot podem passar de 1 minuto.
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi

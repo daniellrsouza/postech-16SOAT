@@ -39,7 +39,8 @@ public class ListarClientesService implements ListarClientesUseCase {
                             c.getNumero(),
                             c.getComplemento(),
                             c.getCidade(),
-                            c.getEstado()
+                            c.getEstado(),
+                            c.getStatus() != null ? c.getStatus().name() : null
                     );
                 })
                 .toList();
