@@ -39,3 +39,5 @@ configMapGenerator:
     behavior: merge
     literals:
       - APP_ENVIRONMENT=homolog
+      - NEW_RELIC_APP_NAME=tech-challenge-backend (homolog)
+      - NEW_RELIC_LABELS=environment:homolog

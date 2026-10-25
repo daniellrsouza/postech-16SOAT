@@ -29,6 +29,8 @@
 	<properties>
 		<java.version>21</java.version>
 		<lombok.version>1.18.38</lombok.version>
+		<!-- Mesma versão do agente baixado no Dockerfile. -->
+		<newrelic.version>9.5.0</newrelic.version>
 		<sonar.organization>gabrielfsg</sonar.organization>
 		<sonar.projectKey>Grupo15_postech-16SOAT</sonar.projectKey>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -136,6 +138,13 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<!-- API do agente Java do New Relic (eventos de negócio e atributos da
+		     transação). Só a interface: sem o agente (-javaagent), as chamadas são no-op. -->
+		<dependency>
+			<groupId>com.newrelic.agent.java</groupId>
+			<artifactId>newrelic-api</artifactId>
+			<version>${newrelic.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.wiremock</groupId>

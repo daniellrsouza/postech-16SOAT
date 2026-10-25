@@ -13,3 +13,5 @@ data:
   MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
   LOGGING_LEVEL_ROOT: INFO
   LOGGING_LEVEL_COM_FIAP: INFO
+  # Logs JSON (ECS) com os campos do MDC, incluindo o correlationId (RFC-005).
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs

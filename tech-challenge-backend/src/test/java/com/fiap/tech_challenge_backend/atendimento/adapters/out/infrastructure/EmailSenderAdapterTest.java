@@ -1,5 +1,7 @@
 package com.fiap.tech_challenge_backend.atendimento.adapters.out.infrastructure;
 
+import com.fiap.tech_challenge_backend.atendimento.application.ports.out.TelemetriaAtendimentoPort;
+
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +24,9 @@ class EmailSenderAdapterTest {
 
     @Mock
     private JavaMailSender mailSender;
+
+    @Mock
+    private TelemetriaAtendimentoPort telemetria;
 
     @InjectMocks
     private EmailSenderAdapter emailSenderAdapter;
