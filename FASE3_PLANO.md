@@ -3,7 +3,8 @@
 Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 
 **Status geral:** E0 concluída; **E1 em andamento**.
-**Última atualização:** 2026-10-23
+**Última atualização:** 2026-10-25
+**Prazo de entrega: 01/11/2026** (informado pelo usuário em 2026-10-25). Trabalho só do usuário + Claude (ninguém do grupo em paralelo). Cronograma na seção 5.2.
 
 ## 1. Decisões tomadas (não rediscutir)
 
@@ -34,10 +35,22 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 | D21 | Fluxo de branches | `feature/*` (a partir da `develop`) → PR para `develop` (deploy homolog) → PR `develop` → `main` (deploy prod) |
 | D22 | Commits do Claude | Autorizado commit **e push** em branches `feature/*`; nunca em `develop`/`main`; PRs só a pedido do usuário |
 
-| D23 | Modelagem do banco | **Revisão dirigida pelo PDF** na E4: análise do schema atual focada em consistência e performance (ex.: índices para as consultas dos dashboards, constraints faltantes); só entram ajustes justificados e aprovados pelo usuário, cada um documentado na E6.5 |
+| D23 | Modelagem do banco | **Revisão dirigida pelo PDF, enxuta** (definido em 2026-10-25): coluna `status` + índices para as consultas dos dashboards + 1–2 constraints óbvias, tudo justificado. Na E4: análise do schema atual focada em consistência e performance (ex.: índices para as consultas dos dashboards, constraints faltantes); só entram ajustes justificados e aprovados pelo usuário, cada um documentado na E6.5 |
 | D24 | Proteção da `main` × admin | **Mantido** "admin pode furar" mesmo ciente do texto do PDF ("sem commits diretos"), reconfirmado em 2026-10-23. Convenção: o Claude nunca faz push na `main` (D22) |
 
-D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
+| D25 | Confirmações | **Homolog liberado** (2026-10-25): plan/apply em homolog sem pedir confirmação, mostrando o resumo do plan antes; apply que **destrua** recurso existente, qualquer coisa em **prod** e ações no GitHub continuam pedindo confirmação |
+| D26 | Libs da Lambda | `jose` (JWT HS256) + `pg` (Postgres) |
+| D27 | Build e testes da Lambda | `esbuild` (um bundle por função) + `Vitest` (com cobertura) |
+
+| D28 | Instância RDS | PostgreSQL 16, **db.t3.micro, Single-AZ** (sem failover: limitação de custo do lab, a registrar na justificativa do banco) |
+| D29 | Usuários do banco | Por ambiente: **usuário da aplicação** (dono do schema, usado pelo Flyway) + **usuário só-leitura em `clientes` para a Lambda**; o master só é usado pelo Job de bootstrap (P8) |
+
+| D30 | Senha master do RDS | **Gerenciada pela AWS** (`manage_master_user_password`, guardada no Secrets Manager); o Terraform a lê só para o Job de bootstrap. Se a LabRole não permitir, volta a ser GitHub Secret |
+| D31 | **Orçamento AWS** | **Limite rígido de US$ 50** no Learner Lab até a entrega (gasto em 2026-10-25: US$ 8,40). Medidas: homolog com 1 réplica; node group com no máximo 2 nós; relatório de custo a cada sessão; **nós desligados (node group em 0) quando o usuário parar de trabalhar** e religados na sessão seguinte. Destino da infra após a entrega: decidir em 30/10 olhando o saldo |
+
+| D32 | Documentação | Diagramas em **Mermaid** dentro dos `.md`; documentação escrita **em paralelo**, a partir de 2026-10-25 (ADRs/RFCs das decisões já tomadas e diagramas de infra primeiro; aplicação, observabilidade e banco à medida que cada etapa termina) |
+
+D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D32 em 2026-10-25. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
 
 ## 2. Premissas técnicas — todas confirmadas pelo usuário em 2026-10-12
 
@@ -49,13 +62,13 @@ Revisadas uma a uma; em todas foi mantida a coluna "Premissa". Valem como decis�
 | P2 | Claims do token de cliente: `sub` = id do cliente (UUID), `role` = `CLIENTE`, `iss` = `tech-challenge-auth`, expiração de 1h. CPF não vai no token | `sub` = CPF | E3, E4 |
 | P3 | Contrato da Lambda: `POST /auth/cpf` com `{"cpf": "..."}`, resposta `{"accessToken": "..."}` (mesmo formato do `/auth/login`). CPF inválido → 400; inexistente → 404; não ativo → 403 | Resposta única 401 para os três casos (não revela existência do CPF) | E3 |
 | P4 | Contrato entre repositórios via **SSM Parameter Store** (`/tech-challenge/<env>/...`): cada pipeline publica seus outputs e o seguinte lê | `terraform_remote_state` lendo o state dos outros repositórios | E1 |
-| P5 | Segredos (JWT, senha do banco, license key do New Relic) entram como GitHub Secrets → variáveis do Terraform → env var da Lambda e Secret do Kubernetes | Secrets Manager lido em runtime (exige VPC endpoint ou NAT para a Lambda) | E1 |
+| P5 | **Revisto em 2026-10-25:** senhas dos usuários do banco por ambiente e `JWT_SECRET` por ambiente são **geradas pelo Terraform do infra-db** (`random_password`) e publicadas como **SSM SecureString** em `/tech-challenge/<env>/...`; Lambda (Terraform → env var) e pipeline da app (→ Secret do Kubernetes) leem de lá. Master do RDS: D30. License key do New Relic: GitHub Secret | Valores cadastrados à mão como GitHub Secrets em cada repo (risco de divergência); Secrets Manager lido em runtime pela Lambda (exige VPC endpoint/NAT) | E2, E3, E4 |
 | P6 | Rede: subnets **privadas** (sem rota para internet) para RDS, Lambda, NLB e VPC Link; **sem NAT Gateway**. Revisto em 2026-10-23: **3 subnets privadas** (uma por AZ dos nós), depois que o teste fim a fim mostrou o nó de `us-east-1c` como `Target.NotInUse` no NLB; o VPC Link fica nas 2 primeiras | NAT Gateway (custo fixo relevante no orçamento do lab) | E1 |
 | P7 | Entrada do cluster **sem ingress controller** (revisto em 2026-10-23: o ingress-nginx original chegou ao fim da vida em março de 2026): o Service da app em cada namespace é `NodePort` fixo (**prod 30080, homolog 30081**); **NLB interno criado pelo Terraform** com um listener e um target group por ambiente; cada API aponta para o listener do seu ambiente, sem reescrita de path. Não depende do AWS Load Balancer Controller (exigiria IRSA) | ingress-nginx (aposentado); Traefik; Gateway API (Envoy Gateway); Service `LoadBalancer` | E1, E4 |
 | P8 | Database do ambiente criado por um **Job no cluster** disparado pelo pipeline do banco (o runner do GitHub não alcança o RDS privado) | Um único database com um schema por ambiente, criado pelo próprio Flyway | E2 |
 | P9 | Stacks Terraform dos repos de infra separadas em `shared` e `env`: `develop` aplica `env=homolog`; `main` aplica `shared` + `env=prod` | Um único stack aplicado só pela `main` | E1, E2 |
-| P10 | Dashboards, alertas e monitor sintético do New Relic como código (provider Terraform `newrelic`) no repo de infra K8s | Criados pela interface e exportados em JSON para `docs/` | E5 |
-| P11 | Telemetria da Lambda: logs JSON no CloudWatch encaminhados ao New Relic por função de log-forwarding fora da VPC (a Lambda na VPC sem NAT não alcança o New Relic) | Extensão New Relic na Lambda + NAT Gateway | E5 |
+| P10 | **Revisto em 2026-10-25 (prazo):** dashboards, alertas e monitor sintético criados **pela interface do New Relic**, com o JSON exportado versionado em `docs/` | Provider Terraform `newrelic` (≈0,5 dia a mais) | E5 |
+| P11 | **Revisto em 2026-10-25 (prazo):** logs JSON da Lambda **só no CloudWatch**; o New Relic cobre aplicação, cluster e as falhas de integração vistas pela aplicação | Forwarder CloudWatch → New Relic; extensão New Relic + NAT | E5 |
 | P12 | Não haverá endpoint novo para alterar o status do cliente (o PDF só pede a consulta); a demonstração de cliente inativo será feita via SQL/seed | Criar endpoint administrativo de alteração de status | E4 |
 
 ## 3. Estado atual do repositório (levantado em 2026-10-10)
@@ -220,6 +233,22 @@ Conferida em 2026-10-23. Status: ✅ feito · ⏳ planejado (etapa) · ⚠️ at
 | PDF único com links e confirmação do `soat-architecture` | E7.3; convites enviados em E0.3 | ⚠️ convites aguardando aceite |
 | Desafio: "soluções serverless para autenticação **e notificações**" | D11 (reconfirmada): fora do escopo; justificativa em ADR (E6.4) | ⚠️ escolha consciente |
 
+## 5.2 Cronograma até a entrega (revisto em 2026-10-25: **entrega em 30/10, tentando 29/10**)
+
+Formas de acelerar adotadas: código e testes adiantados sem AWS enquanto a sessão do lab está fora; documentação (ADRs/RFCs/diagramas) escrita junto com cada etapa; D25 (homolog sem confirmação).
+
+| Dia | Entrega |
+|---|---|
+| 25/10 | Fechar E1 + **E2 RDS**; código e testes da **Lambda** (offline) |
+| 26/10 | Deploy da **Lambda**; código da **aplicação** (`status`, modelo, token, logs JSON, correlation id) |
+| 27/10 | **App** em homolog com fluxo de CPF ponta a ponta; agente New Relic |
+| 28/10 | **New Relic** (K8s, eventos de OS, alertas, uptime, dashboards); promoção para **prod** |
+| 29/10 | Fechar **documentação** e READMEs (meta: já gravar o vídeo) |
+| 30/10 | **Vídeo + PDF: entrega** |
+| 31/10–01/11 | Folga |
+
+Regra de corte: se um dia atrasar, o que cede primeiro é o refinamento (ex.: alertas além do obrigatório), nunca um item da tabela 5.1.
+
 ## 6. Progresso
 
 Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo Claude, **confirmando cada ação antes**. Commits e pushes só a pedido. Ferramentas ausentes na máquina: `helm`, `git-filter-repo`.
@@ -249,8 +278,10 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [ ] Commit de `scripts/atualizar-secrets-aws.sh`, `CLAUDE.md` e `FASE3_PLANO.md` no repo da aplicação: estão na `fase/3`, que não é `feature/*` (D22) → precisa de decisão do usuário
   - [x] `tf.sh` só cria o bucket em 404; em 403 (sessão encerrada) para com mensagem
   - [ ] Bootstrap do primeiro deploy: o job de homolog exige o shared aplicado, que só roda pela `main` → primeira vez aplicar o shared localmente (`scripts/tf.sh shared apply`) ou fazer develop→main antes
-  - [ ] Apply shared + homolog + prod, teste do NLB/VPC Link, checks obrigatórios na `main` (`Validate`, `Plan`)
-  - [ ] PR feature → develop (a pedido do usuário)
+  - [x] Deploy de homolog **pelo CI** após o merge do PR #1: sucesso (2026-10-25)
+  - [x] Economia D31: node group 0–2 com `ignore_changes` em `desired_size` + `scripts/nos.sh` (aplicado no shared com confirmação; PR #2 aberto)
+  - [ ] Prod (pelo merge develop → main) e checks obrigatórios na `main` (`Validate`, `Plan`)
+  - [x] PR #1 feature → develop: CI `Validate` ok, `Plan` com "No changes" no shared e no homolog; **merge (squash) feito em 2026-10-25** a pedido do usuário
 - [ ] E2 — infra-db
 - [ ] E3 — lambda
 - [ ] E4 — app
