@@ -38,7 +38,7 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 | D23 | Modelagem do banco | **Revisão dirigida pelo PDF, enxuta** (definido em 2026-10-25): coluna `status` + índices para as consultas dos dashboards + 1–2 constraints óbvias, tudo justificado. Na E4: análise do schema atual focada em consistência e performance (ex.: índices para as consultas dos dashboards, constraints faltantes); só entram ajustes justificados e aprovados pelo usuário, cada um documentado na E6.5 |
 | D24 | Proteção da `main` × admin | **Mantido** "admin pode furar" mesmo ciente do texto do PDF ("sem commits diretos"), reconfirmado em 2026-10-23. Convenção: o Claude nunca faz push na `main` (D22) |
 
-| D25 | Confirmações | **Homolog liberado** (2026-10-25): plan/apply em homolog sem pedir confirmação, mostrando o resumo do plan antes; apply que **destrua** recurso existente, qualquer coisa em **prod** e ações no GitHub continuam pedindo confirmação |
+| D25 | Confirmações | **Homolog liberado** (2026-10-25): plan/apply em homolog sem pedir confirmação, mostrando o resumo do plan antes; apply que **destrua** recurso existente, qualquer coisa em **prod** e ações no GitHub continuam pedindo confirmação. Exceção liberada em 2026-10-25: **substituição do Job de bootstrap do banco** (recurso efêmero) em homolog não pede confirmação |
 | D26 | Libs da Lambda | `jose` (JWT HS256) + `pg` (Postgres) |
 | D27 | Build e testes da Lambda | `esbuild` (um bundle por função) + `Vitest` (com cobertura) |
 
@@ -282,11 +282,27 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [x] Economia D31: node group 0–2 com `ignore_changes` em `desired_size` + `scripts/nos.sh` (aplicado no shared com confirmação; PR #2 aberto)
   - [ ] Prod (pelo merge develop → main) e checks obrigatórios na `main` (`Validate`, `Plan`)
   - [x] PR #1 feature → develop: CI `Validate` ok, `Plan` com "No changes" no shared e no homolog; **merge (squash) feito em 2026-10-25** a pedido do usuário
-- [ ] E2 — infra-db
-- [ ] E3 — lambda
+- [ ] E2 — infra-db (em andamento)
+  - [x] (2026-10-25) Código na branch `feature/e2-infra-db`: `stacks/shared` (RDS PG16 db.t3.micro Single-AZ, gp3 20 GB criptografado, privado, `rds.force_ssl`, `log_min_duration_statement=500`, logs para o CloudWatch, senha master no Secrets Manager, SG `db` + SG `dbclients` para a Lambda) e `stacks/env` (`random_password` app/lambda/jwt, Job `postgres:16-alpine` idempotente que cria papel `leitura_clientes`, `app_<env>`, `lambda_<env>`, database `tech_challenge_<env>` com dono `app_<env>` e CONNECT só para os dois; SSM String/SecureString), `tf.sh`, workflow, README. `validate` OK
+  - [x] Shared aplicado (12 recursos, RDS em 9 min; D30 funcionou com a LabRole) e **env homolog aplicado** (11 recursos; Job concluído na 1ª tentativa)
+  - [x] Teste de permissões com pod temporário (removido): lambda lê mas não cria tabela; app é dono do schema; sem TLS é recusado. **Achado e corrigido:** `postgres_admin` (database inicial do RDS) aceitava CONNECT de todos → Job revoga. Commit `feature/e2-infra-db`
+  - [ ] Isolamento homolog × prod a verificar quando o env prod for aplicado
+  - [ ] PR feature/e2-infra-db → develop (a pedido)
+  - [ ] **Dependência para a E4:** a migration V17 precisa conceder `SELECT ON clientes TO leitura_clientes` (protegida por `IF EXISTS` do papel, para não quebrar o ambiente local)
+- [ ] E3 — lambda (em andamento)
+  - [x] (2026-10-25) Código + testes na `feature/e3-lambda` (`9e178c6`): `auth-cpf` e `authorizer` em TypeScript, jose + pg, TLS com bundle de CAs do RDS, logs JSON com correlationId e CPF mascarado, 58 testes (100% linhas, 96% branches), build esbuild (CJS). Authorizer aceita emissores `tech-challenge-auth` e `tech-challenge-backend`
+  - [x] Terraform (`terraform/`): `auth-cpf-<env>` na VPC com SG `dbclients`, `authorizer-<env>` fora da VPC, authorizer REQUEST sem cache, rotas (`POST /auth/cpf` → Lambda; login, `/api/public/**`, `/ping`, health e Swagger → app sem authorizer; `ANY /{proxy+}` → app com authorizer). Pipeline `ci-cd.yml` (testes+build; PR plan; develop homolog; main prod) e README. Commit `768b4be`
+  - [x] **Aplicado em homolog** (19 recursos) e testado pelo gateway: CPF inválido 400; corpo inválido 400; CPF válido chega ao RDS por TLS com `lambda_homolog` (falha esperada `relation "clientes" does not exist` até o Flyway da app rodar); sem token 401; token falso 403 (`reason: ERR_JWS_INVALID`). Correção feita: motivo da rejeição saía minificado (`"u"`)
+  - [ ] Teste do 200/403/404 com dados reais: depende da E4 (migration V17 + deploy da app em homolog)
+  - [ ] PR feature/e3-lambda → develop (a pedido)
+  - [ ] **Achado:** o CPF `10387398790` do seed V13 é inválido (dígito verificador); a Lambda responde 400 para ele. Levar para a revisão do modelo (E4.1b)
 - [ ] E4 — app
 - [ ] E5 — Observabilidade
-- [ ] E6 — Documentação de arquitetura
+- [ ] E6 — Documentação de arquitetura (em andamento, branch `feature/e6-docs`)
+  - [x] 11 ADRs e 5 RFCs (`9e31505`)
+  - [x] Diagrama de componentes + sequências de autenticação por CPF e abertura de OS (`f1d4a0c`), Mermaid validado
+  - [ ] Modelo de dados (justificativa, ER, relacionamentos, ajustes) após a E4.1b
+  - [ ] Revisar diagramas e ADR-007 ao final da E4/E5 (HPA de homolog, eventos de OS)
 - [ ] E7 — Entrega
 
 ## 7. Sugestões fora do escopo do PDF
@@ -300,3 +316,5 @@ _Nada aqui deve ser implementado sem pedido explícito._
 - Verificação de posse nos endpoints de acompanhamento (`/clientes/{clienteId}/ordens`): hoje não há checagem de que o cliente do token é o da URL.
 - RS256 + JWKS no lugar do segredo compartilhado.
 - Rate limiting e WAF no gateway.
+- `CriarOrdemServicoClienteService` registra o CPF/CNPJ completo nos logs (LGPD); mascarar como na Lambda.
+- Abertura de OS por `CLIENTE` aceita qualquer CPF/CNPJ no corpo: não verifica se é o do token.
