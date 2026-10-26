@@ -15,3 +15,6 @@ data:
   LOGGING_LEVEL_COM_FIAP: INFO
   # Logs JSON (ECS) com os campos do MDC, incluindo o correlationId (RFC-005).
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+  # Atrás do API Gateway e do NLB: usa X-Forwarded-Proto/Host para gerar URLs
+  # (ex.: o servidor https:// anunciado pelo OpenAPI/Swagger).
+  SERVER_FORWARD_HEADERS_STRATEGY: framework
