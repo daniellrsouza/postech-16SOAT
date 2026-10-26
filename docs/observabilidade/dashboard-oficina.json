@@ -1,0 +1,254 @@
+{
+  "name": "Oficina - Tech Challenge Fase 3",
+  "description": "Volume de OS, tempo por status, falhas e integrações, latência das APIs, recursos do Kubernetes e uptime (homolog e prod).",
+  "permissions": "PUBLIC_READ_WRITE",
+  "pages": [
+    {
+      "name": "Negócio",
+      "description": "Ordens de serviço: volume diário, tempo médio por status e falhas.",
+      "widgets": [
+        {
+          "title": "Volume diário de ordens de serviço",
+          "layout": { "column": 1, "row": 1, "width": 8, "height": 3 },
+          "visualization": { "id": "viz.bar" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT count(*) AS 'OS criadas' FROM OrdemServicoCriada FACET dateOf(timestamp) AS 'dia', appName SINCE 7 days ago LIMIT 50"
+              }
+            ]
+          }
+        },
+        {
+          "title": "OS criadas hoje",
+          "layout": { "column": 9, "row": 1, "width": 4, "height": 3 },
+          "visualization": { "id": "viz.billboard" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              { "accountIds": [8662599], "query": "SELECT count(*) AS 'OS criadas' FROM OrdemServicoCriada FACET appName SINCE today" }
+            ]
+          }
+        },
+        {
+          "title": "Tempo médio por status (minutos): Diagnóstico, Execução, Finalização",
+          "layout": { "column": 1, "row": 4, "width": 8, "height": 3 },
+          "visualization": { "id": "viz.bar" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT average(segundosNoStatusAnterior) / 60 AS 'minutos no status' FROM OrdemServicoStatusAlterado WHERE statusAnterior IN ('EM_DIAGNOSTICO', 'EM_EXECUCAO', 'FINALIZADA') FACET statusAnterior SINCE 7 days ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Tempo médio por status ao longo do tempo (minutos)",
+          "layout": { "column": 9, "row": 4, "width": 4, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT average(segundosNoStatusAnterior) / 60 FROM OrdemServicoStatusAlterado WHERE statusAnterior IN ('EM_DIAGNOSTICO', 'EM_EXECUCAO', 'FINALIZADA') FACET statusAnterior SINCE 7 days ago TIMESERIES 1 day"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Mudanças de status (fluxo)",
+          "layout": { "column": 1, "row": 7, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.table" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT count(*) FROM OrdemServicoStatusAlterado FACET statusAnterior, statusNovo SINCE 7 days ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Falhas no processamento de OS",
+          "layout": { "column": 7, "row": 7, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT count(*) FROM OrdemServicoFalha FACET operacao, erro SINCE 1 day ago TIMESERIES"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Erros e integrações",
+      "description": "Falhas nas integrações (SMTP, banco) e erros da aplicação.",
+      "widgets": [
+        {
+          "title": "Falhas de integração (SMTP)",
+          "layout": { "column": 1, "row": 1, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              { "accountIds": [8662599], "query": "SELECT count(*) FROM IntegracaoFalha FACET integracao, erro SINCE 1 day ago TIMESERIES" }
+            ]
+          }
+        },
+        {
+          "title": "Erros da aplicação por tipo",
+          "layout": { "column": 7, "row": 1, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.bar" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT count(*) FROM TransactionError WHERE appName LIKE 'tech-challenge-backend%' FACET error.class, appName SINCE 1 day ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Chamadas ao banco (tempo médio e volume por operação)",
+          "layout": { "column": 1, "row": 4, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.table" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT count(*) AS 'chamadas', average(duration) * 1000 AS 'ms (média)' FROM Span WHERE appName LIKE 'tech-challenge-backend%' AND category = 'datastore' FACET name SINCE 1 hour ago LIMIT 20"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Logs de erro (com correlationId)",
+          "layout": { "column": 7, "row": 4, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.table" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT timestamp, entity.name, level, message FROM Log WHERE entity.name LIKE 'tech-challenge-backend%' AND level IN ('ERROR', 'WARN') SINCE 1 day ago LIMIT 50"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "APIs e Kubernetes",
+      "description": "Latência, vazão e erros das APIs; CPU e memória do cluster; uptime.",
+      "widgets": [
+        {
+          "title": "Latência das APIs (ms): média e p95",
+          "layout": { "column": 1, "row": 1, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT average(duration) * 1000 AS 'média', percentile(duration, 95) * 1000 AS 'p95' FROM Transaction WHERE appName LIKE 'tech-challenge-backend%' FACET appName SINCE 3 hours ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Endpoints mais lentos (p95 ms)",
+          "layout": { "column": 7, "row": 1, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.bar" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT percentile(duration, 95) * 1000 FROM Transaction WHERE appName LIKE 'tech-challenge-backend%' FACET name SINCE 3 hours ago LIMIT 10"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Taxa de erro das APIs (%)",
+          "layout": { "column": 1, "row": 4, "width": 4, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT percentage(count(*), WHERE error IS true) FROM Transaction WHERE appName LIKE 'tech-challenge-backend%' FACET appName SINCE 3 hours ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "CPU por namespace (cores)",
+          "layout": { "column": 5, "row": 4, "width": 4, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT sum(cpuUsedCores) FROM K8sContainerSample WHERE clusterName = 'eks-tech-challenge' FACET namespaceName SINCE 3 hours ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Memória por namespace (MB)",
+          "layout": { "column": 9, "row": 4, "width": 4, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT sum(memoryWorkingSetBytes) / 1e6 FROM K8sContainerSample WHERE clusterName = 'eks-tech-challenge' FACET namespaceName SINCE 3 hours ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Uso dos nós (% do alocável)",
+          "layout": { "column": 1, "row": 7, "width": 6, "height": 3 },
+          "visualization": { "id": "viz.line" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT average(allocatableCpuCoresUtilization) AS 'CPU %', average(allocatableMemoryUtilization) AS 'memória %' FROM K8sNodeSample WHERE clusterName = 'eks-tech-challenge' FACET nodeName SINCE 3 hours ago TIMESERIES"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Pods da aplicação e réplicas do HPA",
+          "layout": { "column": 7, "row": 7, "width": 3, "height": 3 },
+          "visualization": { "id": "viz.table" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT latest(currentReplicas) AS 'réplicas', latest(desiredReplicas) AS 'desejadas', latest(maxReplicas) AS 'máximo' FROM K8sHpaSample WHERE clusterName = 'eks-tech-challenge' FACET namespaceName SINCE 30 minutes ago"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Uptime (health pelo API Gateway)",
+          "layout": { "column": 10, "row": 7, "width": 3, "height": 3 },
+          "visualization": { "id": "viz.billboard" },
+          "rawConfiguration": {
+            "nrqlQueries": [
+              {
+                "accountIds": [8662599],
+                "query": "SELECT percentage(count(*), WHERE result = 'SUCCESS') AS 'uptime %' FROM SyntheticCheck FACET monitorName SINCE 1 day ago"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variables": []
+}
