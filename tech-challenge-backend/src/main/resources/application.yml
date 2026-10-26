@@ -11,7 +11,8 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      # Schema é responsabilidade exclusiva do Flyway (ajuste F da Fase 3).
+      ddl-auto: validate
     show-sql: false
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
@@ -28,8 +29,9 @@ spring:
     # Configuração de Email - Gmail SMTP
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:oficinagrupo015@gmail.com}
-    password: ${MAIL_PASSWORD:rpdb hkbn hpwp cwwn}
+    # Sem default: credenciais vêm só do ambiente (Secret do Kubernetes / .env).
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     from: ${MAIL_FROM:noreply@oficina-mecanica.com.br}
     properties:
       mail:

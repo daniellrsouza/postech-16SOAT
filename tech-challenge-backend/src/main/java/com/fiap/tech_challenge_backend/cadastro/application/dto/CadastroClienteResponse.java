@@ -12,6 +12,7 @@ public record CadastroClienteResponse(
         String numero,
         String complemento,
         String cidade,
-        String estado
+        String estado,
+        String status
 ) {
 }

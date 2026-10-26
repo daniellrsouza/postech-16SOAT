@@ -340,6 +340,34 @@ class GlobalExceptionHandlerTest {
         }
     }
 
+    // ─── Acesso negado (@PreAuthorize) ──────────────────────────────────────────
+
+    @Nested
+    @DisplayName("AccessDeniedException")
+    class HandleAccessDeniedException {
+
+        @Test
+        @DisplayName("retorna 403 com code ACCESS_DENIED (antes caía no handler de RuntimeException e virava 500)")
+        void retorna403() {
+            ResponseEntity<ApiErrorResponse> response =
+                    handler.handleAccessDeniedException(new org.springframework.security.access.AccessDeniedException("Access Denied"));
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(response.getBody().status()).isEqualTo(403);
+            assertThat(response.getBody().code()).isEqualTo("ACCESS_DENIED");
+            assertThat(response.getBody().details()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("cobre a AuthorizationDeniedException lançada pelo @PreAuthorize (subclasse)")
+        void cobreSubclasseDoPreAuthorize() {
+            var negado = new org.springframework.security.authorization.AuthorizationDeniedException("Access Denied");
+
+            assertThat(negado).isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            assertThat(handler.handleAccessDeniedException(negado).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+    }
+
     // ─── Exception generica ───────────────────────────────────────────────────
 
     @Nested

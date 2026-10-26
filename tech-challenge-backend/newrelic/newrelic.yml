@@ -1,0 +1,40 @@
+# Configuração do agente Java do New Relic. Valores sensíveis e por ambiente vêm
+# de variáveis de ambiente, que têm precedência sobre este arquivo:
+#   NEW_RELIC_LICENSE_KEY  Secret do Kubernetes (GitHub Secret → pipeline)
+#   NEW_RELIC_APP_NAME     ConfigMap do overlay (ex.: "tech-challenge-backend (prod)")
+#   NEW_RELIC_LABELS       ConfigMap do overlay (ex.: "environment:prod")
+common: &default_settings
+  app_name: tech-challenge-backend
+  # Conta US (padrão do cadastro).
+  host: collector.newrelic.com
+
+  # Traces entre requisições (latência por transação e por dependência).
+  distributed_tracing:
+    enabled: true
+  span_events:
+    enabled: true
+
+  # Logs da aplicação enviados pelo agente, já ligados à transação e ao trace
+  # ("logs in context"). O console continua em JSON para o kubectl logs.
+  application_logging:
+    enabled: true
+    forwarding:
+      enabled: true
+      max_samples_stored: 10000
+    metrics:
+      enabled: true
+    local_decorating:
+      enabled: false
+
+  # Eventos de negócio (OrdemServicoCriada, OrdemServicoStatusAlterado,
+  # OrdemServicoFalha, IntegracaoFalha) enviados pela API do agente.
+  custom_insights_events:
+    enabled: true
+
+  # Log do próprio agente fora do stdout da aplicação.
+  log_level: info
+  log_file_path: /tmp
+  log_file_name: newrelic_agent.log
+
+production:
+  <<: *default_settings

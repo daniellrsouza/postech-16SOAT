@@ -1,5 +1,11 @@
 package com.fiap.tech_challenge_backend.cadastro.adapters.out.persistence;
 
+import com.fiap.tech_challenge_backend.cadastro.domain.enums.StatusCliente;
+import jakarta.persistence.EnumType;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import jakarta.persistence.Enumerated;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -62,6 +68,13 @@ public class ClienteJpaEntity {
     @Column(name = "cidade", length = 100)
     private String cidade;
 
+    // CHAR(2) no banco (V2): sem isso o ddl-auto=validate recusa o mapeamento.
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "estado", length = 2)
     private String estado;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 10)
+    @Builder.Default
+    private StatusCliente status = StatusCliente.ATIVO;
 }

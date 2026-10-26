@@ -1,5 +1,6 @@
 package com.fiap.tech_challenge_backend.cadastro.domain.entities;
 
+import com.fiap.tech_challenge_backend.cadastro.domain.enums.StatusCliente;
 import com.fiap.tech_challenge_backend.shared.domain.valueobjects.Cep;
 import com.fiap.tech_challenge_backend.shared.domain.valueobjects.CpfCnpj;
 import com.fiap.tech_challenge_backend.shared.domain.valueobjects.Telefone;
@@ -56,5 +57,9 @@ public class Cliente {
 
     @Size(min = 2, max = 2, message = "O estado deve ter exatamente 2 caracteres")
     private String estado;
+
+    /** Situação cadastral; cliente novo nasce ATIVO. */
+    @Builder.Default
+    private StatusCliente status = StatusCliente.ATIVO;
 }
 

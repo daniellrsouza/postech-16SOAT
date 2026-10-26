@@ -7,6 +7,7 @@ import com.fiap.tech_challenge_backend.atendimento.application.exceptions.OrdemS
 import com.fiap.tech_challenge_backend.atendimento.application.ports.in.AlterarStatusOrdemServicoUseCase;
 import com.fiap.tech_challenge_backend.atendimento.application.ports.out.OrdemServicoRepositoryPort;
 import com.fiap.tech_challenge_backend.atendimento.application.ports.out.OsHistoricoStatusRepositoryPort;
+import com.fiap.tech_challenge_backend.atendimento.application.ports.out.TelemetriaAtendimentoPort;
 import com.fiap.tech_challenge_backend.atendimento.domain.entities.OrdemServico;
 import com.fiap.tech_challenge_backend.atendimento.domain.entities.OsHistoricoStatus;
 import com.fiap.tech_challenge_backend.atendimento.domain.enums.StatusOrdemServico;
@@ -16,6 +17,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,17 +38,20 @@ public class AlterarStatusOrdemServicoService implements AlterarStatusOrdemServi
     private final UsuarioRepositoryPort usuarioRepository;
     private final OrdemServicoNotificacaoService notificacaoService;
     private final OrdemServicoEnriquecimentoService enriquecimentoService;
+    private final TelemetriaAtendimentoPort telemetria;
 
     public AlterarStatusOrdemServicoService(OrdemServicoRepositoryPort ordemServicoRepository,
                                              OsHistoricoStatusRepositoryPort osHistoricoStatusRepository,
                                              UsuarioRepositoryPort usuarioRepository,
                                              OrdemServicoNotificacaoService notificacaoService,
-                                             OrdemServicoEnriquecimentoService enriquecimentoService) {
+                                             OrdemServicoEnriquecimentoService enriquecimentoService,
+                                             TelemetriaAtendimentoPort telemetria) {
         this.ordemServicoRepository = ordemServicoRepository;
         this.osHistoricoStatusRepository = osHistoricoStatusRepository;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoService = notificacaoService;
         this.enriquecimentoService = enriquecimentoService;
+        this.telemetria = telemetria;
     }
 
     @Override
@@ -52,6 +60,18 @@ public class AlterarStatusOrdemServicoService implements AlterarStatusOrdemServi
                                                   StatusOrdemServico novoStatus,
                                                   UUID mecanicoId,
                                                   String usuarioEmail) {
+        try {
+            return alterar(ordemServicoId, novoStatus, mecanicoId, usuarioEmail);
+        } catch (RuntimeException e) {
+            telemetria.falhaProcessamento("alteracao-status", ordemServicoId, e);
+            throw e;
+        }
+    }
+
+    private OrdemServicoResponseDTO alterar(Long ordemServicoId,
+                                            StatusOrdemServico novoStatus,
+                                            UUID mecanicoId,
+                                            String usuarioEmail) {
         log.info("Alterando status da OS: {} | Novo Status: {} | Mecanico ID: {} | Usuario: {}",
                 ordemServicoId, novoStatus, mecanicoId, usuarioEmail);
 
@@ -73,6 +93,8 @@ public class AlterarStatusOrdemServicoService implements AlterarStatusOrdemServi
             log.debug("Mecânico localizado: {} | Nome: {}", novoMecanico.getId(), novoMecanico.getNome());
         }
 
+        Duration tempoNoStatusAtual = statusAtual != novoStatus ? tempoNoStatus(os, statusAtual) : null;
+
         os.alterarStatus(novoStatus, novoMecanico);
         OrdemServico salva = ordemServicoRepository.salvar(os);
 
@@ -91,10 +113,25 @@ public class AlterarStatusOrdemServicoService implements AlterarStatusOrdemServi
         salva.getHistoricoStatus().add(historico);
 
         if (statusAtual != novoStatus) {
+            telemetria.statusAlterado(ordemServicoId, statusAtual, novoStatus, tempoNoStatusAtual);
             notificacaoService.notificarMudancaStatus(salva, statusAtual);
         }
 
         return enriquecimentoService.montar(salva);
+    }
+
+    /**
+     * Tempo que a OS está no status atual: desde a última entrada do histórico que a
+     * levou a esse status ou, sem histórico, desde a criação. Base do dashboard de
+     * tempo médio por status.
+     */
+    private Duration tempoNoStatus(OrdemServico os, StatusOrdemServico statusAtual) {
+        LocalDateTime inicio = osHistoricoStatusRepository.buscarPorOrdensServicoOrdenado(List.of(os.getId())).stream()
+                .filter(h -> h.getStatusDestino() == statusAtual && h.getDataMudanca() != null)
+                .map(OsHistoricoStatus::getDataMudanca)
+                .max(Comparator.naturalOrder())
+                .orElse(os.getDataCriacao());
+        return inicio != null ? Duration.between(inicio, LocalDateTime.now()) : null;
     }
 
     private OrdemServico buscarEntidade(Long id) {

@@ -1,5 +1,6 @@
 package com.fiap.tech_challenge_backend.cadastro.adapters.out.persistence;
 
+import com.fiap.tech_challenge_backend.cadastro.domain.enums.StatusCliente;
 import com.fiap.tech_challenge_backend.cadastro.domain.entities.Cliente;
 import com.fiap.tech_challenge_backend.shared.domain.valueobjects.Cep;
 import com.fiap.tech_challenge_backend.shared.domain.valueobjects.CpfCnpj;
@@ -26,6 +27,7 @@ public final class ClienteMapper {
                 .complemento(entity.getComplemento())
                 .cidade(entity.getCidade())
                 .estado(entity.getEstado())
+                .status(entity.getStatus() != null ? entity.getStatus() : StatusCliente.ATIVO)
                 .build();
     }
 
@@ -45,6 +47,7 @@ public final class ClienteMapper {
                 .complemento(domain.getComplemento())
                 .cidade(domain.getCidade())
                 .estado(domain.getEstado())
+                .status(domain.getStatus() != null ? domain.getStatus() : StatusCliente.ATIVO)
                 .build();
     }
 }
