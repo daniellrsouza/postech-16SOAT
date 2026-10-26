@@ -28,7 +28,7 @@ k8s/
 | Recurso | homolog | prod |
 |---|---|---|
 | Namespace | `homolog` | `prod` |
-| Réplicas | 1 (orçamento do lab) | HPA 2–6 (70% CPU / 75% memória) |
+| Réplicas | 1 (orçamento do lab) | HPA 2–6 por CPU (alvo 70%) |
 | Service NodePort | 30081 | 30080 |
 | PDB `minAvailable` | 0 | 1 |
 | `NEW_RELIC_APP_NAME` | `tech-challenge-backend (homolog)` | `tech-challenge-backend (prod)` |

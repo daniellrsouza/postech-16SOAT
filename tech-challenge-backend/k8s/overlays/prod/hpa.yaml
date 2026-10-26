@@ -1,3 +1,5 @@
+# Escala só por CPU (ADR-007): a JVM ocupa a memória reservada mesmo sem carga
+# (~80% em repouso) e não a devolve, então memória não é sinal de demanda.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -16,9 +18,3 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 75

@@ -55,7 +55,9 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 | D35 | SMTP na nuvem | Usuário cadastra `MAIL_USERNAME`/`MAIL_PASSWORD` com **a própria conta Gmail** (2026-10-26: a `oficinagrupo015@gmail.com` não é mais dele); default exposto removido do `application.yml`. A senha antiga dessa conta segue no histórico público: **avisar o dono da conta no grupo para revogá-la** |
 | D36 | SonarCloud | `sonar.yml` pula a análise com aviso quando não há `SONAR_TOKEN` neste repositório |
 
-D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
+| D37 | HPA de prod | **Só por CPU** (alvo 70%, 2–6 réplicas), decidido em 2026-10-26: a JVM ficou em 79% da memória reservada sem carga, e o alvo de 75% de memória escalaria sem demanda. ADR-007 atualizado |
+
+D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25; D37 em 2026-10-26. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
 
 ## 2. Premissas técnicas — todas confirmadas pelo usuário em 2026-10-12
 
@@ -312,7 +314,10 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [x] (2026-10-26) PR app #4 mergeado (correção 403 + modelo de dados) e redeploy em homolog: agente New Relic **conectado** (`tech-challenge-backend (homolog)`); a 1ª tentativa subiu sem agente porque o secret `NEW_RELIC_LICENSE_KEY` do repo app estava **vazio** (usuário recadastrou)
   - [x] **Teste ponta a ponta repetido: 13/13 OK**, incluindo 403 `ACCESS_DENIED` para cliente em rota de ADMIN
   - [x] Fluxo do funcionário: senha de demonstração de `admin@oficina.com` e `mecanico@oficina.com` definida **só no banco de homolog** via `pgcrypto` (não versionada; repo é público); login pelo gateway, listar OS, OS levada de RECEBIDA a ENTREGUE (4 eventos `OrdemServicoStatusAlterado` com tempo no status) e 4 e-mails aceitos pelo SMTP
-  - [ ] Repetir a senha de demonstração no banco de prod quando o prod da app existir
+  - [x] (2026-10-26) **Promoção para prod dos 4 repositórios**, cada uma conferindo o plan antes do merge (só criação, nada destruído): infra-k8s #4 (nri-bundle + env prod), infra-db #2 (database `tech_challenge_prod`), lambda #2 (+19), app #6 (deploy prod, 2 pods + HPA)
+  - [x] Isolamento homolog × prod: usuários de homolog sem CONNECT em `tech_challenge_prod`; **token de homolog recusado em prod** (403)
+  - [x] **Teste ponta a ponta em prod: 13/13 OK**; login de funcionário em prod; senha de demonstração aplicada em prod (não versionada)
+  - [x] HPA de prod ajustado para só CPU (D37) — commit na `feature/e7-readme`, ainda não aplicado
 - [ ] E5 — Observabilidade (em andamento)
   - [x] (2026-10-25) App, `74410bf`: `CorrelationIdFilter`, logs JSON (ECS) na nuvem, `TelemetriaAtendimentoPort` + `NewRelicTelemetriaAdapter` (eventos `OrdemServicoCriada`, `OrdemServicoStatusAlterado` com `segundosNoStatusAnterior`, `OrdemServicoFalha`, `IntegracaoFalha`), agente Java 9.5.0 no Dockerfile (hash conferido; liga só com a license key), `newrelic.yml`. Suíte 788/0/0
   - [x] infra-k8s, `d547a5e` (branch `feature/e5-newrelic-k8s`): `nri-bundle` 8.0.36 no stack shared (infra, kube-state-metrics, eventos, metadata injection; sem logs de pod; lowDataMode), só com `TF_VAR_newrelic_license_key` (vem do secret no CI). **Só o CI consegue aplicar** (a chave não está local) e o shared só é aplicado pela `main`
