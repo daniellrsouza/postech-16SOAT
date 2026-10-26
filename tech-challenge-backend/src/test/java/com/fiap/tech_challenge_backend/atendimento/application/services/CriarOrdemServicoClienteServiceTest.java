@@ -1,5 +1,6 @@
 package com.fiap.tech_challenge_backend.atendimento.application.services;
 
+import static org.mockito.ArgumentMatchers.eq;
 import com.fiap.tech_challenge_backend.atendimento.application.dto.CriarOrdemServicoClienteRequestDTO;
 import com.fiap.tech_challenge_backend.atendimento.application.dto.OrdemServicoResponseDTO;
 import com.fiap.tech_challenge_backend.atendimento.application.ports.out.OrdemServicoRepositoryPort;
@@ -10,6 +11,7 @@ import com.fiap.tech_challenge_backend.cadastro.application.ports.out.ClienteRep
 import com.fiap.tech_challenge_backend.cadastro.application.ports.out.VeiculoRepositoryPort;
 import com.fiap.tech_challenge_backend.cadastro.domain.entities.Cliente;
 import com.fiap.tech_challenge_backend.cadastro.domain.entities.Veiculo;
+import com.fiap.tech_challenge_backend.atendimento.application.ports.out.TelemetriaAtendimentoPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,6 +53,9 @@ class CriarOrdemServicoClienteServiceTest {
 
     @Mock
     private OrdemServicoEnriquecimentoService enriquecimentoService;
+
+    @Mock
+    private TelemetriaAtendimentoPort telemetria;
 
     @InjectMocks
     private CriarOrdemServicoClienteService service;
@@ -102,6 +107,8 @@ class CriarOrdemServicoClienteServiceTest {
             assertThat(resultado.status()).isEqualTo(StatusOrdemServico.RECEBIDA);
             verify(ordemServicoRepository, times(1)).salvar(any(OrdemServico.class));
             verify(osHistoricoStatusRepository, times(1)).salvar(any());
+            verify(telemetria).ordemServicoCriada(1L, true);
+            verify(telemetria, org.mockito.Mockito.never()).falhaProcessamento(any(), any(), any());
         }
 
         @Test
@@ -153,6 +160,8 @@ class CriarOrdemServicoClienteServiceTest {
                     .hasMessageContaining("Cliente não encontrado");
 
             verify(ordemServicoRepository, org.mockito.Mockito.never()).salvar(any());
+            verify(telemetria).falhaProcessamento(eq("abertura"), org.mockito.ArgumentMatchers.isNull(), any(IllegalArgumentException.class));
+            verify(telemetria, org.mockito.Mockito.never()).ordemServicoCriada(any(), org.mockito.ArgumentMatchers.anyBoolean());
         }
 
         @Test

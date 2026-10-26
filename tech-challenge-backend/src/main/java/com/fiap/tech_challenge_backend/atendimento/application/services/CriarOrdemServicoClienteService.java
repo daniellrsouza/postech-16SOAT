@@ -5,6 +5,7 @@ import com.fiap.tech_challenge_backend.atendimento.application.dto.OrdemServicoR
 import com.fiap.tech_challenge_backend.atendimento.application.ports.in.CriarOrdemServicoClienteUseCase;
 import com.fiap.tech_challenge_backend.atendimento.application.ports.out.OrdemServicoRepositoryPort;
 import com.fiap.tech_challenge_backend.atendimento.application.ports.out.OsHistoricoStatusRepositoryPort;
+import com.fiap.tech_challenge_backend.atendimento.application.ports.out.TelemetriaAtendimentoPort;
 import com.fiap.tech_challenge_backend.atendimento.domain.entities.OrdemServico;
 import com.fiap.tech_challenge_backend.atendimento.domain.entities.OsHistoricoStatus;
 import com.fiap.tech_challenge_backend.atendimento.domain.enums.StatusOrdemServico;
@@ -38,24 +39,36 @@ public class CriarOrdemServicoClienteService implements CriarOrdemServicoCliente
     private final VeiculoRepositoryPort veiculoRepository;
     private final IdGeneratorService idGeneratorService;
     private final OrdemServicoEnriquecimentoService enriquecimentoService;
+    private final TelemetriaAtendimentoPort telemetria;
 
     public CriarOrdemServicoClienteService(OrdemServicoRepositoryPort ordemServicoRepository,
                                             OsHistoricoStatusRepositoryPort osHistoricoStatusRepository,
                                             ClienteRepositoryPort clienteRepository,
                                             VeiculoRepositoryPort veiculoRepository,
                                             IdGeneratorService idGeneratorService,
-                                            OrdemServicoEnriquecimentoService enriquecimentoService) {
+                                            OrdemServicoEnriquecimentoService enriquecimentoService,
+                                            TelemetriaAtendimentoPort telemetria) {
         this.ordemServicoRepository = ordemServicoRepository;
         this.osHistoricoStatusRepository = osHistoricoStatusRepository;
         this.clienteRepository = clienteRepository;
         this.veiculoRepository = veiculoRepository;
         this.idGeneratorService = idGeneratorService;
         this.enriquecimentoService = enriquecimentoService;
+        this.telemetria = telemetria;
     }
 
     @Override
     @Transactional
     public OrdemServicoResponseDTO criar(CriarOrdemServicoClienteRequestDTO request) {
+        try {
+            return criarOrdemServico(request);
+        } catch (RuntimeException e) {
+            telemetria.falhaProcessamento("abertura", null, e);
+            throw e;
+        }
+    }
+
+    private OrdemServicoResponseDTO criarOrdemServico(CriarOrdemServicoClienteRequestDTO request) {
         log.info("Criando nova Ordem de Serviço por Cliente | CPF/CNPJ: {} | Placa: {}",
                 request.cpfCnpjCliente(), request.placaVeiculo());
 
@@ -102,6 +115,8 @@ public class CriarOrdemServicoClienteService implements CriarOrdemServicoCliente
                 .statusOrigem(null)
                 .statusDestino(StatusOrdemServico.RECEBIDA)
                 .build());
+
+        telemetria.ordemServicoCriada(saved.getId(), Boolean.TRUE.equals(saved.getUrgente()));
 
         return enriquecimentoService.montar(saved);
     }

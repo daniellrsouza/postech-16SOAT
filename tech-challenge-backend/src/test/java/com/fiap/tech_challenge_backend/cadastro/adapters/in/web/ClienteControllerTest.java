@@ -64,8 +64,8 @@ class ClienteControllerTest {
     @BeforeEach
     void setUp() {
         cadastroRequest = new CadastroClienteRequest("João Silva", "joao@test.com", "senha123", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP");
-        cadastroResponse = new CadastroClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP");
-        buscarResponse = new BuscarClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP");
+        cadastroResponse = new CadastroClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP", "ATIVO");
+        buscarResponse = new BuscarClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP", "ATIVO");
     }
 
     @Test
@@ -90,8 +90,8 @@ class ClienteControllerTest {
     @DisplayName("GET /clientes - deve listar todos os clientes")
     void testListarTodosClientes() throws Exception {
         List<BuscarClienteResponse> clientes = Arrays.asList(
-                new BuscarClienteResponse(UUID.randomUUID(), "João", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP"),
-                new BuscarClienteResponse(UUID.randomUUID(), "Maria", "98765432100", "11988888888", "12345678", "Rua B", "456", "", "Rio de Janeiro", "RJ")
+                new BuscarClienteResponse(UUID.randomUUID(), "João", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP", "ATIVO"),
+                new BuscarClienteResponse(UUID.randomUUID(), "Maria", "98765432100", "11988888888", "12345678", "Rua B", "456", "", "Rio de Janeiro", "RJ", "ATIVO")
         );
 
         when(listarClientesUseCase.execute()).thenReturn(clientes);
@@ -110,7 +110,7 @@ class ClienteControllerTest {
     @WithMockUser
     @DisplayName("GET /clientes/{cpfCnpj} - deve buscar cliente por CPF")
     void testBuscarClientePorCpf() throws Exception {
-        BuscarClienteResponse response = new BuscarClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP");
+        BuscarClienteResponse response = new BuscarClienteResponse(UUID.randomUUID(), "João Silva", "12345678901", "11999999999", "12345678", "Rua A", "123", "", "São Paulo", "SP", "ATIVO");
         when(buscarClienteUseCase.execute("12345678901")).thenReturn(response);
 
         mockMvc.perform(get("/clientes/12345678901")
@@ -126,7 +126,7 @@ class ClienteControllerTest {
     @WithMockUser
     @DisplayName("PUT /clientes/{cpfCnpj} - deve atualizar cliente com sucesso")
     void testAtualizarClienteComSucesso() throws Exception {
-        BuscarClienteResponse atualizado = new BuscarClienteResponse(UUID.randomUUID(), "João Silva Santos", "12345678901", "11999999999", "12345678", "Rua B", "456", "", "Rio de Janeiro", "RJ");
+        BuscarClienteResponse atualizado = new BuscarClienteResponse(UUID.randomUUID(), "João Silva Santos", "12345678901", "11999999999", "12345678", "Rua B", "456", "", "Rio de Janeiro", "RJ", "ATIVO");
         AtualizarClienteRequest atualizarRequest = new AtualizarClienteRequest("João Silva Santos", "11999999999", "12345678", "Rua B", "456", "", "Rio de Janeiro", "RJ");
 
         when(atualizarClienteUseCase.execute(eq("12345678901"), any(AtualizarClienteRequest.class)))

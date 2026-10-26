@@ -41,4 +41,11 @@ jobs:
         working-directory: tech-challenge-backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./mvnw -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=Grupo15_postech-16SOAT
+        # O SonarCloud do projeto está ligado ao repositório do grupo; sem token
+        # neste repositório, a análise é pulada com aviso em vez de falhar.
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN não configurado neste repositório; análise do SonarCloud ignorada."
+            exit 0
+          fi
+          ./mvnw -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=Grupo15_postech-16SOAT

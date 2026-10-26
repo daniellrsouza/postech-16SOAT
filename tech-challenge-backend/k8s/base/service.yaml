@@ -1,0 +1,16 @@
+# NodePort fixo por ambiente (ADR-005): o NLB interno do infra-k8s tem um
+# listener por ambiente apontando para esta porta nos nós. A porta vem do overlay
+# e precisa bater com /tech-challenge/<env>/app-node-port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tech-challenge-app
+spec:
+  type: NodePort
+  selector:
+    app: tech-challenge-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

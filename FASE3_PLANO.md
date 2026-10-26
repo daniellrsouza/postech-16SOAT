@@ -50,7 +50,12 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 
 | D32 | Documentação | Diagramas em **Mermaid** dentro dos `.md`; documentação escrita **em paralelo**, a partir de 2026-10-25 (ADRs/RFCs das decisões já tomadas e diagramas de infra primeiro; aplicação, observabilidade e banco à medida que cada etapa termina) |
 
-D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D32 em 2026-10-25. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
+| D33 | Ajustes do modelo (D23) | Aprovados A–G (2026-10-25): **A** `clientes.status` + GRANT por coluna para `leitura_clientes`; **B** CHECK de movimentação com VENDA/RESERVA (bug); **C** índices compostos das consultas reais; **D** índices nas FKs `veiculo_id`/`mecanico_id`; **E** remoção de 4 índices duplicados de UNIQUE; **F** `ddl-auto: validate`; **G** CPF inválido do seed corrigido. Migrations V17–V20 |
+| D34 | Eventos de negócio | **API do agente Java** do New Relic (`newrelic-api`, no-op sem agente); conta New Relic **US**, Account ID **8662599** |
+| D35 | SMTP na nuvem | Usuário cadastra `MAIL_USERNAME`/`MAIL_PASSWORD` (senha de app nova, revogando a exposta); default exposto removido do `application.yml` |
+| D36 | SonarCloud | `sonar.yml` pula a análise com aviso quando não há `SONAR_TOKEN` neste repositório |
+
+D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
 
 ## 2. Premissas técnicas — todas confirmadas pelo usuário em 2026-10-12
 
@@ -296,8 +301,14 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [ ] Teste do 200/403/404 com dados reais: depende da E4 (migration V17 + deploy da app em homolog)
   - [ ] PR feature/e3-lambda → develop (a pedido)
   - [ ] **Achado:** o CPF `10387398790` do seed V13 é inválido (dígito verificador); a Lambda responde 400 para ele. Levar para a revisão do modelo (E4.1b)
-- [ ] E4 — app
-- [ ] E5 — Observabilidade
+- [ ] E4 — app (em andamento, branch `feature/e4-app`)
+  - [x] (2026-10-25) `b86c7da`: V17–V20 (D33), `StatusCliente` no domínio/entidade/mapper/respostas, `ddl-auto: validate` (única divergência: `clientes.estado` CHAR(2), corrigida na entidade), `SchemaFlywayIT` (Testcontainers PG16: todas as migrations + validate, 7/7), k8s `base` + overlays homolog/prod (NodePort 30081/30080, HPA prod 2–6), pipeline novo (PR testes; develop→homolog; main→prod; Secret a partir do SSM; rollout + health pelo gateway), `sonar.yml` condicional, remoção de `infra/` e `terraform.yml`, SMTP sem default. Suíte: 776/0/0
+  - [x] **Armadilhas descobertas:** (1) a extensão Java do VS Code compila em `target/` com Java 25 → ArchUnit 1.3 não lê; usar `mvnw clean`; (2) o freeze do ArchUnit guarda assinaturas de construtor/método: mudar assinatura exige regravar o store (feito 2×, sempre provando com diff normalizado que as dependências são as mesmas); (3) iniciar o Docker Desktop troca o contexto do kubectl para `docker-desktop`
+  - [ ] Deploy em homolog pelo pipeline (PR feature/e4-app → develop) e teste ponta a ponta do CPF (200/403/404)
+- [ ] E5 — Observabilidade (em andamento)
+  - [x] (2026-10-25) App, `74410bf`: `CorrelationIdFilter`, logs JSON (ECS) na nuvem, `TelemetriaAtendimentoPort` + `NewRelicTelemetriaAdapter` (eventos `OrdemServicoCriada`, `OrdemServicoStatusAlterado` com `segundosNoStatusAnterior`, `OrdemServicoFalha`, `IntegracaoFalha`), agente Java 9.5.0 no Dockerfile (hash conferido; liga só com a license key), `newrelic.yml`. Suíte 788/0/0
+  - [x] infra-k8s, `d547a5e` (branch `feature/e5-newrelic-k8s`): `nri-bundle` 8.0.36 no stack shared (infra, kube-state-metrics, eventos, metadata injection; sem logs de pod; lowDataMode), só com `TF_VAR_newrelic_license_key` (vem do secret no CI). **Só o CI consegue aplicar** (a chave não está local) e o shared só é aplicado pela `main`
+  - [ ] Monitor sintético (uptime), condições de alerta e dashboards na interface do New Relic, com JSON exportado em `docs/` (P10)
 - [ ] E6 — Documentação de arquitetura (em andamento, branch `feature/e6-docs`)
   - [x] 11 ADRs e 5 RFCs (`9e31505`)
   - [x] Diagrama de componentes + sequências de autenticação por CPF e abertura de OS (`f1d4a0c`), Mermaid validado
@@ -316,5 +327,8 @@ _Nada aqui deve ser implementado sem pedido explícito._
 - Verificação de posse nos endpoints de acompanhamento (`/clientes/{clienteId}/ordens`): hoje não há checagem de que o cliente do token é o da URL.
 - RS256 + JWKS no lugar do segredo compartilhado.
 - Rate limiting e WAF no gateway.
+- `BuscarClienteService` devolve `rua` e `numero` trocados no `GET /clientes/{cpfCnpj}` (bug pré-existente).
+- V11 tenta classificar peça/insumo por ids que não são de `peca_insumo` (e roda antes do seed V13): todas as peças ficam `PECA`.
+- Imagem base `eclipse-temurin:21-jre-alpine` com vulnerabilidades conhecidas apontadas pelo Docker Scout.
 - `CriarOrdemServicoClienteService` registra o CPF/CNPJ completo nos logs (LGPD); mascarar como na Lambda.
 - Abertura de OS por `CLIENTE` aceita qualquer CPF/CNPJ no corpo: não verifica se é o do token.
