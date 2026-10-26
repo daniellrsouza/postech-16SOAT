@@ -308,11 +308,16 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [x] **Teste ponta a ponta em homolog** (script reproduzível): CPF 400/404/**403 bloqueado**/200; CPF corrigido pela V20 autentica; sem token 401; token inválido 403; `/me` com `ROLE_CLIENTE`; acompanhamento 200; cliente abre OS (201); `correlationId` do gateway nos logs JSON e no evento de telemetria
   - [x] **Defeito pré-existente achado no teste:** usuário sem o perfil exigido recebia **500** "Access Denied" (o `@ExceptionHandler(RuntimeException)` capturava a `AccessDeniedException`). Corrigido com tratador → 403 (usuário aprovou), branch `feature/e4-acesso-negado`
   - [x] infra-k8s promovido para a `main` (PR #4, merge commit): `nri-bundle` instalado (6 pods), ambiente prod criado (API `https://xcgp1q2we3.execute-api.us-east-1.amazonaws.com`)
-  - [x] Secrets SMTP cadastrados pelo usuário (conta Gmail própria), valem a partir do próximo deploy
+  - [x] Secrets SMTP cadastrados pelo usuário (conta Gmail própria)
+  - [x] (2026-10-26) PR app #4 mergeado (correção 403 + modelo de dados) e redeploy em homolog: agente New Relic **conectado** (`tech-challenge-backend (homolog)`); a 1ª tentativa subiu sem agente porque o secret `NEW_RELIC_LICENSE_KEY` do repo app estava **vazio** (usuário recadastrou)
+  - [x] **Teste ponta a ponta repetido: 13/13 OK**, incluindo 403 `ACCESS_DENIED` para cliente em rota de ADMIN
+  - [x] Fluxo do funcionário: senha de demonstração de `admin@oficina.com` e `mecanico@oficina.com` definida **só no banco de homolog** via `pgcrypto` (não versionada; repo é público); login pelo gateway, listar OS, OS levada de RECEBIDA a ENTREGUE (4 eventos `OrdemServicoStatusAlterado` com tempo no status) e 4 e-mails aceitos pelo SMTP
+  - [ ] Repetir a senha de demonstração no banco de prod quando o prod da app existir
 - [ ] E5 — Observabilidade (em andamento)
   - [x] (2026-10-25) App, `74410bf`: `CorrelationIdFilter`, logs JSON (ECS) na nuvem, `TelemetriaAtendimentoPort` + `NewRelicTelemetriaAdapter` (eventos `OrdemServicoCriada`, `OrdemServicoStatusAlterado` com `segundosNoStatusAnterior`, `OrdemServicoFalha`, `IntegracaoFalha`), agente Java 9.5.0 no Dockerfile (hash conferido; liga só com a license key), `newrelic.yml`. Suíte 788/0/0
   - [x] infra-k8s, `d547a5e` (branch `feature/e5-newrelic-k8s`): `nri-bundle` 8.0.36 no stack shared (infra, kube-state-metrics, eventos, metadata injection; sem logs de pod; lowDataMode), só com `TF_VAR_newrelic_license_key` (vem do secret no CI). **Só o CI consegue aplicar** (a chave não está local) e o shared só é aplicado pela `main`
-  - [ ] Monitor sintético (uptime), condições de alerta e dashboards na interface do New Relic, com JSON exportado em `docs/` (P10)
+  - [x] `docs/observabilidade/`: dashboard pronto para importar (3 páginas, 18 widgets NRQL na conta 8662599) e guia de monitores de uptime e das 6 condições de alerta
+  - [ ] **Usuário**: importar o dashboard e criar monitores e alertas na interface (P10)
 - [ ] E6 — Documentação de arquitetura (em andamento, branch `feature/e6-docs`)
   - [x] 11 ADRs e 5 RFCs (`9e31505`)
   - [x] Diagrama de componentes + sequências de autenticação por CPF e abertura de OS (`f1d4a0c`), Mermaid validado
