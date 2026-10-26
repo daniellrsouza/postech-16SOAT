@@ -1,217 +1,67 @@
-# Kubernetes — Tech Challenge Backend
+# Kubernetes — manifests da aplicação
 
-Este diretório contém os manifests Kubernetes da aplicação, organizados com
-[Kustomize](https://kustomize.io/). Este guia ensina a subir tudo localmente
-(usando **Kind**) e a validar que a aplicação está funcionando.
+Manifests da aplicação, organizados com [Kustomize](https://kustomize.io/): uma `base` comum e um
+overlay por ambiente. São aplicados no **Amazon EKS** pelo pipeline
+[`.github/workflows/pipeline.yml`](../../.github/workflows/pipeline.yml).
 
----
+O que é do **cluster** (namespaces, metrics-server, NLB, integração New Relic) fica no
+repositório [postech-16soat-infra-k8s](https://github.com/daniellrsouza/postech-16soat-infra-k8s).
+O banco é o **RDS**, provisionado pelo
+[postech-16soat-infra-db](https://github.com/daniellrsouza/postech-16soat-infra-db), e não roda mais
+no cluster.
 
-## 📦 O que tem aqui
+## Estrutura
 
-| Arquivo | Recurso | Função |
-|---------|---------|--------|
-| `namespace.yaml` | Namespace | Isola tudo no namespace `tech-challenge` |
-| `configmap.yaml` | ConfigMap | Configurações não sensíveis (URL do banco, host de e-mail, flags) |
-| `secret.yaml` | Secret | Credenciais (banco, JWT, e-mail) — **apenas placeholders** |
-| `postgres-statefulset.yaml` | StatefulSet | Banco PostgreSQL com volume persistente (PVC 10Gi) |
-| `postgres-service.yaml` | Service | Acesso interno ao banco (ClusterIP) |
-| `app-deployment.yaml` | Deployment | A aplicação Spring Boot (2 réplicas) |
-| `app-service.yaml` | Service | Acesso interno à API (ClusterIP) |
-| `app-ingress.yaml` | Ingress | Exposição HTTP externa (host `tech-challenge.local`) |
-| `app-hpa.yaml` | HorizontalPodAutoscaler | Autoscaling por CPU/memória (2 a 6 réplicas) |
-| `app-pdb.yaml` | PodDisruptionBudget | Mantém ao menos 1 réplica no ar durante manutenções |
-| `kustomization.yaml` | Kustomization | Amarra todos os recursos acima |
-
----
-
-## ✅ Pré-requisitos
-
-- **Docker Desktop** instalado e rodando
-- **kubectl** — `winget install Kubernetes.kubectl`
-- **Kind** — `winget install Kubernetes.kind`
-
-> Após instalar via `winget`, **feche e reabra o terminal** para o PATH atualizar.
-> Confirme com `kind version` e `kubectl version --client`.
-
-Use o **PowerShell** (não o Prompt de Comando/cmd), e rode os comandos com caminho
-relativo (`docker build ... .`, `kubectl apply -k k8s/`) **a partir da raiz do
-projeto** (`tech-challenge-backend`).
-
----
-
-## 🚀 Subindo o cluster (passo a passo)
-
-### 1. Criar o cluster Kind
-
-```bash
-kind create cluster --name tech-challenge --image kindest/node:v1.31.2
+```
+k8s/
+  base/
+    deployment.yaml     Deployment tech-challenge-app (probes, recursos, envFrom)
+    service.yaml        Service NodePort (porta do ambiente vem do overlay)
+    pdb.yaml            PodDisruptionBudget
+    configmap.yaml      Configuração não sensível (logs JSON, forward headers, SMTP host)
+  overlays/
+    homolog/            namespace homolog · 1 réplica · NodePort 30081
+    prod/               namespace prod · HPA 2–6 réplicas · NodePort 30080
+      hpa.yaml
 ```
 
-> **Por que fixar `--image kindest/node:v1.31.2`?**
-> As imagens mais novas do Kind (Kubernetes 1.36+) exigem **cgroup v2**. No WSL2 do
-> Windows, que normalmente roda **cgroup v1**, o control-plane não sobe e o
-> `kubeadm init` falha com `connection refused` na porta 6443. A versão 1.31 ainda
-> funciona com cgroup v1 e contorna o problema. (Alternativa: habilitar cgroup v2 —
-> veja a seção Troubleshooting.)
+| Recurso | homolog | prod |
+|---|---|---|
+| Namespace | `homolog` | `prod` |
+| Réplicas | 1 (orçamento do lab) | HPA 2–6 (70% CPU / 75% memória) |
+| Service NodePort | 30081 | 30080 |
+| PDB `minAvailable` | 0 | 1 |
+| `NEW_RELIC_APP_NAME` | `tech-challenge-backend (homolog)` | `tech-challenge-backend (prod)` |
 
-Confirme que o nó está pronto:
+O NodePort de cada ambiente é o contrato com o NLB interno do `infra-k8s`, que tem um listener e um
+target group por ambiente (ver [ADR-005](../../docs/adr/ADR-005-nlb-nodeport-sem-ingress.md)). Não há
+ingress controller.
 
-```bash
-kubectl get nodes
-```
+## Secret `tech-challenge-secrets`
 
-Deve mostrar um nó `Ready`.
+Não é versionado: o pipeline o cria em cada deploy, com valores do SSM e dos GitHub Secrets.
 
-### 2. Buildar a imagem da aplicação
+| Chave | Origem |
+|---|---|
+| `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | SSM (`/tech-challenge/shared/db-host`, `/tech-challenge/<env>/db-*`) |
+| `JWT_SECRET` | SSM (`/tech-challenge/<env>/jwt-secret`), o mesmo usado pela Lambda |
+| `NEW_RELIC_LICENSE_KEY`, `MAIL_USERNAME`, `MAIL_PASSWORD` | GitHub Secrets |
 
-Na raiz do projeto (onde está o `Dockerfile`):
+## Probes
 
-```bash
-docker build -t tech-challenge-backend:latest .
-```
+`startupProbe` (até 5 min, cobre o Flyway no primeiro boot), `readinessProbe` e `livenessProbe` em
+`/actuator/health`. O target group do NLB usa o mesmo endpoint como health check.
 
-### 3. Carregar a imagem para dentro do Kind
-
-O Kind roda num container isolado e **não enxerga** as imagens do seu Docker
-automaticamente. Este passo é obrigatório:
-
-```bash
-kind load docker-image tech-challenge-backend:latest --name tech-challenge
-```
-
-> Se pular, o pod fica com `ErrImageNeverPull`.
-
-### 4. Aplicar os manifests
+## Comandos úteis
 
 ```bash
-kubectl apply -k k8s/
+aws eks update-kubeconfig --region us-east-1 --name eks-tech-challenge
+
+kubectl kustomize overlays/homolog          # ver o que o pipeline aplica
+kubectl -n homolog get pods,svc
+kubectl -n homolog logs deploy/tech-challenge-app -f      # logs JSON com correlationId
+kubectl -n prod get hpa                                    # autoscaling
 ```
 
-Isso cria o namespace, ConfigMap, Secret, Postgres, app, Service, Ingress, HPA e PDB.
-
-### 5. Acompanhar os pods subindo
-
-```bash
-kubectl -n tech-challenge get pods -w
-```
-
-Espere os dois pods `tech-challenge-app-...` e o `tech-challenge-postgres-0`
-ficarem **`1/1 Running`** com `RESTARTS 0`. O Postgres sobe primeiro; o app conecta
-em seguida (pode levar ~1 min no total). Pressione `Ctrl+C` para sair.
-
----
-
-## 🧪 Testando a aplicação
-
-Faça o `port-forward` do Service da API (deixe este terminal aberto):
-
-```bash
-kubectl -n tech-challenge port-forward svc/tech-challenge-app 8080:80
-```
-
-Em **outro terminal**, teste o health (deve retornar `200` e `{"status":"UP"}`,
-**sem precisar de token**):
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-No navegador:
-
-- Health: <http://localhost:8080/actuator/health>
-- Swagger UI: <http://localhost:8080/swagger-ui.html>
-
-### (Opcional) Testar via Ingress
-
-O Kind não traz o ingress-nginx por padrão. Para testar o `app-ingress.yaml`,
-instale o controller e mapeie o host `tech-challenge.local` para `127.0.0.1` no
-arquivo `C:\Windows\System32\drivers\etc\hosts`. Para um teste rápido, o
-`port-forward` acima já é suficiente.
-
----
-
-## 🔎 Comandos úteis
-
-```bash
-# Ver todos os recursos do namespace
-kubectl -n tech-challenge get all
-
-# Logs da aplicação (todas as réplicas)
-kubectl -n tech-challenge logs -l app=tech-challenge-app --tail=100
-
-# Filtrar só as mensagens (sem as linhas de stacktrace "at ...")
-kubectl -n tech-challenge logs -l app=tech-challenge-app --tail=300 | Select-String -Pattern "^\s+at " -NotMatch
-
-# Detalhes / eventos de um pod (bom para investigar probes)
-kubectl -n tech-challenge describe pod -l app=tech-challenge-app
-
-# Recarregar os pods após mudar ConfigMap/Secret
-kubectl -n tech-challenge rollout restart deployment tech-challenge-app
-
-# Status do autoscaling (precisa do metrics-server no cluster)
-kubectl -n tech-challenge get hpa
-```
-
----
-
-## 🧹 Derrubando tudo
-
-Remover só a aplicação (mantém o cluster):
-
-```bash
-kubectl delete -k k8s/
-```
-
-Remover o cluster inteiro:
-
-```bash
-kind delete cluster --name tech-challenge
-```
-
----
-
-## 🛠️ Troubleshooting
-
-### `kubeadm init ... connection refused` ao criar o cluster
-Causa: imagem nova do Kind exige **cgroup v2**, mas o WSL2 está em cgroup v1.
-- **Solução rápida:** use `--image kindest/node:v1.31.2` (feito no passo 1).
-- **Solução definitiva:** habilite cgroup v2. Crie/edite `C:\Users\<seu-usuario>\.wslconfig`:
-  ```ini
-  [wsl2]
-  kernelCommandLine = cgroup_no_v1=all
-  ```
-  Depois rode `wsl --shutdown`, reabra o Docker Desktop e recrie o cluster.
-
-### Pod do app fica em `0/1 Running` e reinicia em loop
-As probes de readiness/liveness estão falhando. Veja os logs filtrados
-(comando acima) para achar a causa. Dois problemas já mapeados neste projeto:
-
-1. **Probe recebia 401** — o endpoint `/actuator/health` precisa estar liberado no
-   Spring Security. Já tratado em `SecurityConfig` (`/actuator/health/**` com `permitAll`).
-2. **Health check de e-mail falhando (503)** — o Actuator tenta autenticar no SMTP
-   e falha com credenciais inválidas, derrubando o `/actuator/health`. Já tratado
-   no `configmap.yaml` com `MANAGEMENT_HEALTH_MAIL_ENABLED: "false"`.
-
-### `ErrImageNeverPull` no pod
-A imagem não foi carregada no Kind. Rode o passo 3
-(`kind load docker-image ...`) e reinicie o deployment.
-
-### `docker build` falha com `Dockerfile: no such file or directory`
-Você não está na raiz do projeto. Rode `cd` até a pasta `tech-challenge-backend`
-antes do `docker build`.
-
----
-
-## 🔐 Nota sobre segredos
-
-O `secret.yaml` contém **apenas placeholders**. **Nunca** comite credenciais reais
-neste arquivo. Em produção, use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets),
-[External Secrets Operator](https://external-secrets.io/), ou crie o Secret via
-linha de comando (fora do Git):
-
-```bash
-kubectl -n tech-challenge create secret generic tech-challenge-secrets \
-  --from-literal=DB_USER=... --from-literal=DB_PASS=... \
-  --from-literal=JWT_SECRET=... --from-literal=MAIL_USERNAME=... \
-  --from-literal=MAIL_PASSWORD=...
-```
+Para gerar carga e ver o HPA escalar em prod, use requisições ao endpoint público de health ou às
+APIs protegidas pelo API Gateway, e acompanhe com `kubectl -n prod get hpa -w`.

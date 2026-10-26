@@ -1,6 +1,8 @@
 # Tech Challenge Backend
 
-API REST para gerenciamento de ordens de serviço em oficina mecânica, desenvolvida com Spring Boot 3, PostgreSQL e arquitetura em camadas com Clean Architecture.
+API REST para gerenciamento de ordens de serviço em oficina mecânica, desenvolvida com Spring Boot 3, PostgreSQL e arquitetura hexagonal.
+
+> Visão geral da Fase 3 (arquitetura na nuvem, ambientes, CI/CD, observabilidade e documentação): [README da raiz](../README.md). Este arquivo detalha a execução local.
 
 ## 📋 Visão Geral
 
@@ -207,126 +209,24 @@ Resposta esperada:
 }
 ```
 
-### Kubernetes (local, via Kind)
+### Kubernetes
 
-```bash
-kubectl apply -k k8s/
-```
-
-Os manifestos incluem `Namespace`, `ConfigMap`, `Secret`, `PostgreSQL`, `Deployment`, `Service` e `HPA`. Passo a passo completo (criar cluster Kind, carregar a imagem, testar) em [`k8s/README.md`](k8s/README.md).
+Os manifestos da aplicação estão em [`k8s/`](k8s/) (Kustomize: `base` + overlays `homolog` e
+`prod`) e são aplicados pelo pipeline no EKS. Veja [`k8s/README.md`](k8s/README.md).
 
 ### Acessar Swagger UI
 Abra no navegador: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
 ---
 
-## ☁️ Deploy na AWS (EKS via Terraform)
+## ☁️ Deploy na AWS (Fase 3)
 
-Sobe a mesma aplicação num cluster EKS real, provisionado via Terraform (pasta `infra/`), usando os mesmos manifestos de `k8s/`.
-
-> ⚠️ **Custo**: o cluster EKS e os nodes (`t3.medium`) geram cobrança contínua enquanto existirem — não é free tier. Se estiver numa AWS Academy com budget limitado, rode `terraform destroy` assim que terminar os testes.
-
-### Pré-requisitos
-- **Terraform** ≥ 1.5 — [Download](https://developer.hashicorp.com/terraform/downloads)
-- **AWS CLI** configurado com as credenciais da sua sessão (AWS Academy: `aws configure` com as credenciais temporárias do Learner Lab)
-- **kubectl**
-- **Docker** (para publicar a imagem da aplicação)
-
-### 1. Configurar os segredos
-
-O `Secret` do Kubernetes (`tech-challenge-secrets`) **não** é lido a partir de `k8s/secret.yaml` quando provisionado via Terraform — aquele arquivo tem só placeholders e existe pro fluxo local com Kind, onde pode ficar versionado sem problema. No caminho AWS, os valores reais vêm de variáveis do Terraform marcadas como `sensitive`, sem default, definidas em [`infra/vars.tf`](infra/vars.tf) (`db_user`, `db_pass`, `jwt_secret`, `mail_username`, `mail_password`) e montadas em [`infra/k8s-secret.tf`](infra/k8s-secret.tf) via `yamlencode()` — assim o segredo real nunca precisa existir como texto num arquivo `.yaml` commitado.
-
-```bash
-cd infra
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edite o `terraform.tfvars` recém-criado com os valores reais. Ele já está no `.gitignore` (`infra/*.tfvars`) — só o `.example` (sem valores reais) fica versionado. Alternativa sem arquivo, via variáveis de ambiente:
-
-```bash
-export TF_VAR_db_user=postgres
-export TF_VAR_db_pass=...
-export TF_VAR_jwt_secret=...
-export TF_VAR_mail_username=...
-export TF_VAR_mail_password=...
-```
-
-Pro `jwt_secret`, a aplicação usa os bytes crus da string (`getBytes()`) como chave HMAC-SHA256, que exige no mínimo 256 bits (32 bytes) — gere um valor válido com:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-> ⚠️ `sensitive = true` só esconde o valor na saída do `plan`/`apply` no terminal — o valor real continua em texto puro no **state file**, armazenado no bucket S3 do backend. Quem tiver acesso de leitura a esse bucket vê os segredos. Para um projeto acadêmico isso costuma ser aceitável, mas vale no mínimo habilitar *versioning* + *encryption at rest* (SSE-S3, sem custo extra) no bucket.
-
-### 2. Provisionar a infraestrutura
-
-```bash
-terraform init
-terraform apply
-```
-
-Isso cria a VPC, o cluster EKS, o node group, o repositório ECR, os addons necessários (EBS CSI driver, metrics-server) e aplica todos os manifestos de `k8s/` (namespace, ConfigMap, Secret, Postgres, aplicação, Service, HPA, PDB). O `Ingress` também é criado, mas fica inerte — não há controller instalado (ver `TODO.md`), então a forma de acessar a API é via port-forward (passo 5).
-
-### 3. Publicar a imagem da aplicação no ECR
-
-O Terraform cria o repositório, mas não builda nem publica a imagem — isso é manual:
-
-```bash
-terraform output docker_build_and_push
-```
-
-Copie e rode os três comandos exibidos (`docker login`, `docker build`, `docker push`), **a partir da raiz do projeto** (onde está o `Dockerfile`), não de dentro de `infra/`.
-
-### 4. Apontar o kubectl para o cluster
-
-```bash
-terraform output configure_kubectl
-```
-
-Copie e rode o comando exibido (`aws eks update-kubeconfig ...`).
-
-### 5. Verificar se os pods subiram
-
-```bash
-kubectl -n tech-challenge get pods -w
-```
-
-Espere os pods do Postgres e da aplicação ficarem `1/1 Running`. Se algum ficar em `ImagePullBackOff`, a imagem não foi publicada (volte ao passo 3). Se ficar em `CrashLoopBackOff`, veja os logs (`kubectl -n tech-challenge logs <pod> --previous`) e os eventos (`kubectl -n tech-challenge describe pod <pod>`).
-
-### 6. Testar via port-forward
-
-```bash
-kubectl -n tech-challenge port-forward svc/tech-challenge-app 8080:80
-```
-
-Em outro terminal:
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-Ou no navegador:
-- Health: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
-- Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-
-As coleções do Postman/Insomnia (seção "📚 Coleções Postman/Insomnia" mais abaixo) também funcionam aqui, apontando para `localhost:8080`.
-
-### 7. Testar o autoscaling (HPA)
-
-Gere carga contra o endpoint (ex.: com `hey`, `ab`, ou um pod `busybox` em loop de `wget`) e acompanhe:
-
-```bash
-kubectl -n tech-challenge get hpa -w
-```
-
-O número de réplicas deve subir conforme o uso de CPU/memória passa dos limites configurados (70%/75%).
-
-### 8. Derrubar tudo
-
-```bash
-cd infra
-terraform destroy
-```
+A infraestrutura saiu deste repositório na Fase 3: rede, EKS e API Gateway estão em
+[postech-16soat-infra-k8s](https://github.com/daniellrsouza/postech-16soat-infra-k8s), e o banco
+RDS em [postech-16soat-infra-db](https://github.com/daniellrsouza/postech-16soat-infra-db).
+A aplicação é publicada pelo pipeline [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml):
+push na `develop` → homolog; push na `main` → prod. Visão geral, URLs dos ambientes e
+documentação de arquitetura: [README da raiz](../README.md).
 
 ---
 
