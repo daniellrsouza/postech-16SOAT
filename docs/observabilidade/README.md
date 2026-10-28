@@ -59,14 +59,27 @@ readiness e liveness).
 New Relic → **Alerts** → **Alert policies** → **New alert policy** `Oficina - Fase 3` → **Add a
 condition** → **Write your own query** (NRQL), com as condições abaixo.
 
-| Condição | NRQL | Limite |
-|---|---|---|
-| **Falha no processamento de OS** | `SELECT count(*) FROM OrdemServicoFalha` | Crítico: acima de 0 por pelo menos 1 minuto |
-| Falha de integração (SMTP) | `SELECT count(*) FROM IntegracaoFalha` | Alerta: acima de 0 em 5 minutos |
-| Taxa de erro da API (prod) | `SELECT percentage(count(*), WHERE error IS true) FROM Transaction WHERE appName = 'tech-challenge-backend (prod)'` | Crítico: acima de 5% por 5 minutos |
-| Latência p95 da API (prod) | `SELECT percentile(duration, 95) FROM Transaction WHERE appName = 'tech-challenge-backend (prod)'` | Crítico: acima de 2 s por 5 minutos |
-| Health indisponível | `SELECT count(*) FROM SyntheticCheck WHERE result != 'SUCCESS'` | Crítico: acima de 0 por pelo menos 1 minuto |
-| Pod da aplicação reiniciando | `SELECT max(restartCountDelta) FROM K8sContainerSample WHERE clusterName = 'eks-tech-challenge' AND containerName = 'app' FACET namespaceName` | Alerta: acima de 0 |
+Em **Set thresholds** → **Critical**, a tela monta a frase *"Query result is `above` [valor]
+[modo] [janela]"*. O valor está na unidade que a consulta retorna (`duration` em **segundos**).
+Use **for at least** quando o valor precisa ficar acima durante toda a janela e **at least once
+in** quando uma ocorrência basta.
+
+| Condição | NRQL | Valor | Modo | Janela |
+|---|---|---|---|---|
+| **Falha no processamento de OS** | `SELECT count(*) FROM OrdemServicoFalha` | 0 | at least once in | 1 min |
+| Falha de integração (SMTP) | `SELECT count(*) FROM IntegracaoFalha` | 0 | at least once in | 5 min |
+| Erros na API (prod) | `SELECT count(*) FROM TransactionError WHERE appName = 'tech-challenge-backend (prod)'` | 5 | for at least | 5 min |
+| Latência p95 da API (prod) | `SELECT percentile(duration, 95) FROM Transaction WHERE appName = 'tech-challenge-backend (prod)'` | 2 (segundos) | for at least | 5 min |
+| Health indisponível | `SELECT count(*) FROM SyntheticCheck WHERE result != 'SUCCESS'` | 0 | at least once in | 1 min |
+| Pod da aplicação reiniciando | `SELECT max(restartCountDelta) FROM K8sContainerSample WHERE clusterName = 'eks-tech-challenge' AND containerName = 'app' FACET namespaceName` | 0 | at least once in | 5 min |
+
+Nas condições de contagem (eventos raros), em **Adjust to signal behavior**: *Streaming method* →
+**Event timer** e *Fill data gaps with* → **Static value 0**.
+
+> **Por que contagem de erros, e não taxa (%):** o New Relic valida a consulta ao salvar a condição.
+> `percentage(count(*), WHERE error IS true)` sem tráfego é 0/0 e não retorna valor ("No value
+> returned from NRQL query"), o que acontece sempre que o laboratório está desligado. `count(*)`
+> retorna 0 sem dados, então a condição pode ser criada e avaliada a qualquer momento.
 
 Para a notificação: na política, **Add a workflow** → destino e-mail com o endereço do time.
 
