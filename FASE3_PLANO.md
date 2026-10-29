@@ -3,7 +3,7 @@
 Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 
 **Status geral:** E0 concluída; **E1 em andamento**.
-**Última atualização:** 2026-10-25
+**Última atualização:** 2026-10-28
 **Prazo de entrega: 01/11/2026** (informado pelo usuário em 2026-10-25). Trabalho só do usuário + Claude (ninguém do grupo em paralelo). Cronograma na seção 5.2.
 
 ## 1. Decisões tomadas (não rediscutir)
@@ -55,7 +55,11 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 | D35 | SMTP na nuvem | Usuário cadastra `MAIL_USERNAME`/`MAIL_PASSWORD` com **a própria conta Gmail** (2026-10-26: a `oficinagrupo015@gmail.com` não é mais dele); default exposto removido do `application.yml`. A senha antiga dessa conta segue no histórico público: **avisar o dono da conta no grupo para revogá-la** |
 | D36 | SonarCloud | `sonar.yml` pula a análise com aviso quando não há `SONAR_TOKEN` neste repositório |
 
-D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
+| D37 | HPA de prod | **Só por CPU** (alvo 70%, 2–6 réplicas), decidido em 2026-10-26: a JVM ficou em 79% da memória reservada sem carga, e o alvo de 75% de memória escalaria sem demanda. ADR-007 atualizado |
+
+| D38 | Conexões com o banco | Pool Hikari de **5 por pod** (mín. 2 ociosas), decidido em 2026-10-29: o RDS `db.t3.micro` aceita 81 conexões; com o pool padrão (10) e o HPA por memória, prod chegou a 6 pods e 60 conexões, e o deploy de homolog falhou por falta de conexão. HPA de prod aplicado direto no cluster (só CPU) com autorização |
+
+D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25; D37 em 2026-10-26; D38 em 2026-10-29. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
 
 ## 2. Premissas técnicas — todas confirmadas pelo usuário em 2026-10-12
 
@@ -312,12 +316,17 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [x] (2026-10-26) PR app #4 mergeado (correção 403 + modelo de dados) e redeploy em homolog: agente New Relic **conectado** (`tech-challenge-backend (homolog)`); a 1ª tentativa subiu sem agente porque o secret `NEW_RELIC_LICENSE_KEY` do repo app estava **vazio** (usuário recadastrou)
   - [x] **Teste ponta a ponta repetido: 13/13 OK**, incluindo 403 `ACCESS_DENIED` para cliente em rota de ADMIN
   - [x] Fluxo do funcionário: senha de demonstração de `admin@oficina.com` e `mecanico@oficina.com` definida **só no banco de homolog** via `pgcrypto` (não versionada; repo é público); login pelo gateway, listar OS, OS levada de RECEBIDA a ENTREGUE (4 eventos `OrdemServicoStatusAlterado` com tempo no status) e 4 e-mails aceitos pelo SMTP
-  - [ ] Repetir a senha de demonstração no banco de prod quando o prod da app existir
+  - [x] (2026-10-26) **Promoção para prod dos 4 repositórios**, cada uma conferindo o plan antes do merge (só criação, nada destruído): infra-k8s #4 (nri-bundle + env prod), infra-db #2 (database `tech_challenge_prod`), lambda #2 (+19), app #6 (deploy prod, 2 pods + HPA)
+  - [x] Isolamento homolog × prod: usuários de homolog sem CONNECT em `tech_challenge_prod`; **token de homolog recusado em prod** (403)
+  - [x] **Teste ponta a ponta em prod: 13/13 OK**; login de funcionário em prod; senha de demonstração aplicada em prod (não versionada)
+  - [x] HPA de prod ajustado para só CPU (D37) — commit na `feature/e7-readme`, ainda não aplicado
 - [ ] E5 — Observabilidade (em andamento)
   - [x] (2026-10-25) App, `74410bf`: `CorrelationIdFilter`, logs JSON (ECS) na nuvem, `TelemetriaAtendimentoPort` + `NewRelicTelemetriaAdapter` (eventos `OrdemServicoCriada`, `OrdemServicoStatusAlterado` com `segundosNoStatusAnterior`, `OrdemServicoFalha`, `IntegracaoFalha`), agente Java 9.5.0 no Dockerfile (hash conferido; liga só com a license key), `newrelic.yml`. Suíte 788/0/0
   - [x] infra-k8s, `d547a5e` (branch `feature/e5-newrelic-k8s`): `nri-bundle` 8.0.36 no stack shared (infra, kube-state-metrics, eventos, metadata injection; sem logs de pod; lowDataMode), só com `TF_VAR_newrelic_license_key` (vem do secret no CI). **Só o CI consegue aplicar** (a chave não está local) e o shared só é aplicado pela `main`
   - [x] `docs/observabilidade/`: dashboard pronto para importar (3 páginas, 18 widgets NRQL na conta 8662599) e guia de monitores de uptime e das 6 condições de alerta
-  - [ ] **Usuário**: importar o dashboard e criar monitores e alertas na interface (P10)
+  - [x] (2026-10-28, usuário, na interface — P10) **Dashboard importado**, **monitores de uptime** `oficina-health-homolog`/`oficina-health-prod` e **as 6 condições de alerta** criados
+  - [x] Ajuste descoberto ao criar: a condição de **taxa** de erro (`percentage`) não salva sem tráfego ("No value returned from NRQL query"); substituída por **contagem** de `TransactionError` (> 5 por 5 min). Guia atualizado com valor/modo/janela no formato da tela (branch `feature/e6-alertas`)
+  - [ ] Workflow de notificação por e-mail na política de alertas (usuário)
 - [ ] E6 — Documentação de arquitetura (em andamento, branch `feature/e6-docs`)
   - [x] 11 ADRs e 5 RFCs (`9e31505`)
   - [x] Diagrama de componentes + sequências de autenticação por CPF e abertura de OS (`f1d4a0c`), Mermaid validado

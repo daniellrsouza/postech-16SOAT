@@ -1,0 +1,223 @@
+{
+  "info": {
+    "name": "Tech Challenge Fase 3 - API Gateway",
+    "description": "Fluxo da Fase 3 pelo API Gateway: autenticação por CPF (Lambda), login de funcionário, APIs protegidas pelo Lambda Authorizer e ciclo de vida da OS.\n\nDefina a variável `baseUrl` com a URL da API do ambiente (SSM: /tech-challenge/<env>/apigateway-api-endpoint). Os requests de login salvam o token nas variáveis `tokenCliente` e `tokenFuncionario`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://nb3750pl6g.execute-api.us-east-1.amazonaws.com" },
+    { "key": "cpfCliente", "value": "529.982.247-25" },
+    { "key": "clienteId", "value": "88888888-8888-4888-8888-888888888880" },
+    { "key": "placaVeiculo", "value": "ABC1234" },
+    { "key": "emailFuncionario", "value": "admin@oficina.com" },
+    { "key": "senhaFuncionario", "value": "" },
+    { "key": "tokenCliente", "value": "" },
+    { "key": "tokenFuncionario", "value": "" },
+    { "key": "osId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticação",
+      "item": [
+        {
+          "name": "Cliente ATIVO - POST /auth/cpf (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 com accessToken', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tokenCliente', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"cpf\": \"{{cpfCliente}}\" }" },
+            "url": "{{baseUrl}}/auth/cpf"
+          }
+        },
+        {
+          "name": "CPF inválido (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"cpf\": \"529.982.247-24\" }" },
+            "url": "{{baseUrl}}/auth/cpf"
+          }
+        },
+        {
+          "name": "Cliente inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"cpf\": \"861.234.567-76\" }" },
+            "url": "{{baseUrl}}/auth/cpf"
+          }
+        },
+        {
+          "name": "Cliente BLOQUEADO (403)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"cpf\": \"111.444.777-35\" }" },
+            "url": "{{baseUrl}}/auth/cpf"
+          }
+        },
+        {
+          "name": "Funcionário - POST /auth/login (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 com accessToken', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tokenFuncionario', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"email\": \"{{emailFuncionario}}\", \"password\": \"{{senhaFuncionario}}\" }" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. APIs protegidas (cliente)",
+      "item": [
+        {
+          "name": "Sem token (401)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/me" }
+        },
+        {
+          "name": "GET /me com token do cliente (200)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenCliente}}" }],
+            "url": "{{baseUrl}}/me"
+          }
+        },
+        {
+          "name": "Abrir OS - POST /api/v1/ordens-servico/criar (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('osId', pm.response.json().id);",
+                  "console.log('X-Correlation-Id:', pm.response.headers.get('X-Correlation-Id'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenCliente}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpfCnpjCliente\": \"52998224725\",\n  \"placaVeiculo\": \"{{placaVeiculo}}\",\n  \"queixaCliente\": \"Barulho ao frear\",\n  \"observacoes\": \"Demonstração Fase 3\",\n  \"urgente\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/ordens-servico/criar"
+          }
+        },
+        {
+          "name": "Acompanhar ordens do cliente (200)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenCliente}}" }],
+            "url": "{{baseUrl}}/clientes/{{clienteId}}/ordens"
+          }
+        },
+        {
+          "name": "Cliente em rota de funcionário (403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenCliente}}" }],
+            "url": "{{baseUrl}}/api/v1/ordens-servico/listar-os"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ciclo da OS (funcionário)",
+      "item": [
+        {
+          "name": "Listar OS priorizadas (200)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenFuncionario}}" }],
+            "url": "{{baseUrl}}/api/v1/ordens-servico/listar-os-priorizadas"
+          }
+        },
+        {
+          "name": "Status → EM_DIAGNOSTICO",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenFuncionario}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"novoStatus\": \"EM_DIAGNOSTICO\", \"mecanicoId\": \"77777777-7777-4777-8777-777777777771\" }" },
+            "url": { "raw": "{{baseUrl}}/api/v1/ordens-servico/alterar-status?id={{osId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ordens-servico", "alterar-status"], "query": [{ "key": "id", "value": "{{osId}}" }] }
+          }
+        },
+        {
+          "name": "Status → EM_EXECUCAO",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenFuncionario}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"novoStatus\": \"EM_EXECUCAO\" }" },
+            "url": { "raw": "{{baseUrl}}/api/v1/ordens-servico/alterar-status?id={{osId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ordens-servico", "alterar-status"], "query": [{ "key": "id", "value": "{{osId}}" }] }
+          }
+        },
+        {
+          "name": "Status → FINALIZADA",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenFuncionario}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"novoStatus\": \"FINALIZADA\" }" },
+            "url": { "raw": "{{baseUrl}}/api/v1/ordens-servico/alterar-status?id={{osId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ordens-servico", "alterar-status"], "query": [{ "key": "id", "value": "{{osId}}" }] }
+          }
+        },
+        {
+          "name": "Status → ENTREGUE",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenFuncionario}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"novoStatus\": \"ENTREGUE\" }" },
+            "url": { "raw": "{{baseUrl}}/api/v1/ordens-servico/alterar-status?id={{osId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ordens-servico", "alterar-status"], "query": [{ "key": "id", "value": "{{osId}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Saúde",
+      "item": [
+        { "name": "Health pelo gateway (200)", "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" } },
+        { "name": "Swagger UI", "request": { "method": "GET", "url": "{{baseUrl}}/swagger-ui.html" } }
+      ]
+    }
+  ]
+}

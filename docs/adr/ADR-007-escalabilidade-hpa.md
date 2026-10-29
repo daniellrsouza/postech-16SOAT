@@ -11,9 +11,13 @@ nós que podem ficar ligados.
 
 ## Decisão
 
-- **HorizontalPodAutoscaler** na aplicação, por CPU e memória, alimentado pelo **metrics-server**
-  (instalado pelo `infra-k8s` via Helm). Em prod, 2 a 6 réplicas, com alvo de 70% de CPU e 75% de
-  memória; em homolog, 1 réplica.
+- **HorizontalPodAutoscaler** na aplicação, **por CPU**, alimentado pelo **metrics-server**
+  (instalado pelo `infra-k8s` via Helm). Em prod, 2 a 6 réplicas, com alvo de 70% de CPU; em
+  homolog, 1 réplica.
+- **Memória não é métrica de escala** (revisto em 2026-10-26, após o deploy em prod): a JVM ocupa
+  ~80% da memória reservada mesmo sem carga e não a devolve. Com alvo de 75% de memória, o HPA
+  criaria réplicas sem demanda real, até o máximo, e as excedentes ficariam pendentes nos 2 nós.
+  A memória continua limitada por pod (`limits`) e monitorada no New Relic.
 - **PodDisruptionBudget** e rolling update sem indisponibilidade (`maxUnavailable: 0`).
 - **Node group gerenciado** do EKS de 0 a 2 nós `t3.medium`: o mínimo 0 permite desligar os nós
   fora do horário de trabalho, e o máximo 2 protege o orçamento.
