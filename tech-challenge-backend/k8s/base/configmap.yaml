@@ -18,3 +18,7 @@ data:
   # Atrás do API Gateway e do NLB: usa X-Forwarded-Proto/Host para gerar URLs
   # (ex.: o servidor https:// anunciado pelo OpenAPI/Swagger).
   SERVER_FORWARD_HEADERS_STRATEGY: framework
+  # RDS db.t3.micro aceita só 81 conexões (max_connections). Com prod em até 6
+  # pods + homolog + Lambda, 10 por pod (padrão do Hikari) esgotava o banco.
+  SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE: "5"
+  SPRING_DATASOURCE_HIKARI_MINIMUMIDLE: "2"
