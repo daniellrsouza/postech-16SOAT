@@ -542,4 +542,3 @@ Este projeto foi desenvolvido como Tech Challenge para o programa de Pós-Gradua
 
 ---
 
-**Desenvolvido com ❤️ pelo Grupo 15**
