@@ -5,7 +5,7 @@ Contexto para sessões novas ou após compactação. Leia este arquivo e depois
 
 ## O que é este repositório
 
-Tech Challenge FIAP/SOAT, Grupo 15. API REST de oficina mecânica (ordens de serviço,
+Tech Challenge FIAP/SOAT, Fase 3. API REST de oficina mecânica (ordens de serviço,
 orçamentos, estoque, cadastro), Java 21 / Spring Boot 3, arquitetura hexagonal por
 contexto (`acesso`, `cadastro`, `atendimento`, `estoque`, `acompanhamento`, `shared`).
 
