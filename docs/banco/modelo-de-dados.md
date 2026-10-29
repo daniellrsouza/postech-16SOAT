@@ -186,6 +186,18 @@ entidades JPA contra o schema.
 | F | `spring.jpa.hibernate.ddl-auto: validate` (antes `update`) | config | Consistência | O schema passa a ser responsabilidade exclusiva do Flyway; o Hibernate só confere. A única divergência encontrada (`clientes.estado` é `CHAR(2)`) foi corrigida no mapeamento |
 | G | CPF inválido do seed corrigido (`10387398790` → `10387398708`) | V20 | Consistência dos dados | A aplicação só validava o formato; a Function valida os dígitos verificadores e recusava esse cliente |
 
+### Conexões
+
+A `db.t3.micro` aceita **81 conexões** (`max_connections`, derivado da memória da instância). Cada
+pod da aplicação usa um pool Hikari de **até 5 conexões** (mínimo 2 ociosas), e cada container da
+Lambda usa até 2. No pior caso (6 pods em prod, 1 em homolog e algumas Lambdas), são cerca de 45
+conexões, o que deixa folga para os rolling updates.
+
+Antes do ajuste, o pool padrão de 10 por pod e o HPA escalando por memória levaram prod a 6 pods
+com 60 conexões ociosas, e um deploy de homolog falhou com `remaining connection slots are
+reserved`. O HPA passou a escalar só por CPU ([ADR-007](../adr/ADR-007-escalabilidade-hpa.md)), e o
+pool foi reduzido.
+
 ### Acesso por ambiente
 
 | Papel / usuário | Onde conecta | O que pode |

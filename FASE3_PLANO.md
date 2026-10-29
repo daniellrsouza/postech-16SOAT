@@ -57,7 +57,9 @@ Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 
 | D37 | HPA de prod | **Só por CPU** (alvo 70%, 2–6 réplicas), decidido em 2026-10-26: a JVM ficou em 79% da memória reservada sem carga, e o alvo de 75% de memória escalaria sem demanda. ADR-007 atualizado |
 
-D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25; D37 em 2026-10-26. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
+| D38 | Conexões com o banco | Pool Hikari de **5 por pod** (mín. 2 ociosas), decidido em 2026-10-29: o RDS `db.t3.micro` aceita 81 conexões; com o pool padrão (10) e o HPA por memória, prod chegou a 6 pods e 60 conexões, e o deploy de homolog falhou por falta de conexão. HPA de prod aplicado direto no cluster (só CPU) com autorização |
+
+D1–D16 tomadas em 2026-10-10; D17–D18 em 2026-10-20; D19–D24 em 2026-10-23; D25–D36 em 2026-10-25; D37 em 2026-10-26; D38 em 2026-10-29. **D11 reconfirmada em 2026-10-23**, ciente do risco: a justificativa vai em ADR na E6.4.
 
 ## 2. Premissas técnicas — todas confirmadas pelo usuário em 2026-10-12
 
