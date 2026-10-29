@@ -1,4 +1,4 @@
-# postech-16soat-app — Tech Challenge, Grupo 15, Fase 3
+# postech-16soat-app — Tech Challenge, Fase 3
 
 API REST de uma **oficina mecânica**: cadastro de clientes e veículos, ordens de serviço (OS),
 orçamentos, estoque de peças e acompanhamento da OS pelo cliente. Java 21 / Spring Boot 3,
@@ -165,5 +165,4 @@ Secrets do repositório: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESS
 
 ---
 
-Pós-graduação em Arquitetura de Software, FIAP (16SOAT) · **Grupo 15** ·
-[Trello](https://trello.com/invite/b/69ff9b3fbdc96ebfe1808af1/ATTI5333882e6d64dcfb121c2fc69a608ec05F0B8F04/grupo-15-soat)
+Pós-graduação em Arquitetura de Software, FIAP (16SOAT)
