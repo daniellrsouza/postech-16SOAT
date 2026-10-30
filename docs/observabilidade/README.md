@@ -91,3 +91,5 @@ Para a notificação: na política, **Add a workflow** → destino e-mail com o 
   CPF mascarado.
 - **API Gateway:** access log JSON no CloudWatch (`/aws/apigateway/api-tech-challenge-<env>`).
 - **Banco:** log do Postgres no CloudWatch, incluindo consultas acima de 500 ms.
+
+_Pipeline demonstrado no vídeo da Fase 3._
