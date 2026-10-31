@@ -49,7 +49,7 @@ ou etapa concluída**, não só no fim da sessão.
    repositório só a pedido explícito. Ações no GitHub (settings, secrets, convites)
    exigem confirmação a cada ação.
    **AWS:** homolog pode ser aplicado sem confirmação (D25); prod, qualquer destruição de
-   recurso existente e ações no GitHub pedem confirmação. Prazo: entrega até 30/10/2026.
+   recurso existente e ações no GitHub pedem confirmação. Prazo: entrega até 03/11/2026.
 5. **Conta AWS é AWS Academy (Learner Lab):** só existe a `LabRole`. Não é possível
    criar IAM roles/policies, OIDC provider nem IRSA; as credenciais do pipeline
    (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) expiram a cada

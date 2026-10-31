@@ -10,7 +10,7 @@ Este é o repositório da **aplicação principal** e da **documentação de arq
 
 ## 🎥 Vídeo de demonstração
 
-**[Demonstração da Fase 3 — YouTube](LINK_DO_VIDEO)** · fase anterior:
+**[Demonstração da Fase 3 — YouTube](https://youtu.be/RW36Jy7zxkI)** · fase anterior:
 [Fase 2](https://www.youtube.com/watch?v=79YrCSF7ioA)
 
 ## Repositórios da Fase 3

@@ -2,9 +2,9 @@
 
 Fonte de verdade do trabalho da Fase 3. Atualizado incrementalmente.
 
-**Status geral:** E0 concluída; **E1 em andamento**.
-**Última atualização:** 2026-10-28
-**Prazo de entrega: 01/11/2026** (informado pelo usuário em 2026-10-25). Trabalho só do usuário + Claude (ninguém do grupo em paralelo). Cronograma na seção 5.2.
+**Status geral:** E0 a E6 concluídas; vídeo publicado; **falta enviar a entrega (E7)**.
+**Última atualização:** 2026-10-31
+**Prazo de entrega: 03/11/2026** (informado pelo usuário em 2026-10-30; antes, 01/11). Trabalho só do usuário + Claude (ninguém do grupo em paralelo). Cronograma na seção 5.2.
 
 ## 1. Decisões tomadas (não rediscutir)
 
@@ -212,34 +212,34 @@ Spike descartável (HTTP API com stages `homolog`/`prod`, Lambdas eco e Function
 
 ## 5.1 Rastreabilidade com o PDF (obrigatórios)
 
-Conferida em 2026-10-23. Status: ✅ feito · ⏳ planejado (etapa) · ⚠️ atenção.
+Conferida em 2026-10-23; status atualizados em 2026-10-31. Status: ✅ feito · ⏳ planejado (etapa) · ⚠️ atenção.
 
 | Requisito do PDF | Onde é atendido | Status |
 |---|---|---|
-| API Gateway | D2, D9, D14; E1.5 | ⏳ E1 |
-| Rotas sensíveis protegidas com autenticação via CPF | D5, D6 (Lambda Authorizer + Spring Security) | ⏳ E3, E4 |
-| Function: validar CPF | E3.1 | ⏳ E3 |
-| Function: consultar existência e **status** do cliente | D7, P1, E3.1, E4.1 (coluna `status`) | ⏳ E3, E4 |
-| Function: gerar e devolver JWT válido para as APIs protegidas | D6, P2, P3, E3.1 | ⏳ E3 |
+| API Gateway | D2, D9, D14; E1.5 | ✅ |
+| Rotas sensíveis protegidas com autenticação via CPF | D5, D6 (Lambda Authorizer + Spring Security) | ✅ |
+| Function: validar CPF | E3.1 | ✅ |
+| Function: consultar existência e **status** do cliente | D7, P1, E3.1, E4.1 (coluna `status`) | ✅ |
+| Function: gerar e devolver JWT válido para as APIs protegidas | D6, P2, P3, E3.1 | ✅ |
 | 4 repositórios (Lambda, infra K8s, infra banco, aplicação) | D13, D16, E0 | ✅ E0 |
-| CI/CD em cada repositório, com deploy automático na nuvem | E1.7, E2.5, E3.5, E4.6 | ⏳ |
+| CI/CD em cada repositório, com deploy automático na nuvem | E1.7, E2.5, E3.5, E4.6 | ✅ |
 | `main` protegida, sem commits diretos | E0.3a | ⚠️ protegida, mas **admin pode furar** (D24, reconfirmado ciente do risco) |
 | PR obrigatório para merge | E0.3a | ✅ |
-| Deploy automático das branches de homologação e produção | D9, D21, P9, environments da E0.3a | ⏳ pipelines |
-| Infra: API Gateway, Function, banco gerenciado, Kubernetes com escalabilidade, Terraform | D2, D3, E2 (RDS), E1 (EKS + node group 2–3) + HPA da app (E4.4), Terraform em 3 repos | ⏳ |
-| Integração com New Relic | D4, E5 | ⏳ E5 |
-| Monitorar latência, CPU/memória do K8s, healthchecks/uptime | E5.3, E5.5, E5.6 | ⏳ E5 |
-| Alertas para falhas no processamento de OS | E5.4, E5.7 | ⏳ E5 |
-| Logs JSON com correlação entre requisições | E5.1, E5.2 (gateway injeta `X-Correlation-Id`) | ⏳ E1, E5 |
-| Dashboards: volume diário de OS, tempo médio por status (Diagnóstico, Execução, Finalização), erros nas integrações | E5.8 | ⏳ E5 |
-| Diagrama de componentes (nuvem, APIs, banco, monitoramento) | E6.1 | ⏳ E6 |
-| Diagramas de sequência: autenticação e abertura de OS | E6.2 | ⏳ E6 |
-| RFCs e ADRs | E6.3, E6.4 | ⏳ E6 |
-| Justificativa do banco, ajustes no modelo relacional, ER e relacionamentos | E6.5, E4.1, E4.1b (D23) | ⏳ E4, E6 |
-| Dockerfiles, pipelines funcionais, links dos deploys ativos | E4, E7.1 | ⏳ |
-| README de cada repo: propósito, tecnologias, execução/deploy, diagrama do repo, link Swagger/Postman | E1.8, E2.5, E3.6, E4.8, E7.1 | ⏳ |
-| Vídeo até 15 min (CPF, pipeline, deploy, APIs protegidas, dashboard ao vivo, logs e traces) | E7.2 | ⏳ E7 |
-| PDF único com links e confirmação do `soat-architecture` | E7.3; convites enviados em E0.3 | ⚠️ convites aguardando aceite |
+| Deploy automático das branches de homologação e produção | D9, D21, P9, environments da E0.3a | ✅ |
+| Infra: API Gateway, Function, banco gerenciado, Kubernetes com escalabilidade, Terraform | D2, D3, E2 (RDS), E1 (EKS + node group 2–3) + HPA da app (E4.4), Terraform em 3 repos | ✅ |
+| Integração com New Relic | D4, E5 | ✅ |
+| Monitorar latência, CPU/memória do K8s, healthchecks/uptime | E5.3, E5.5, E5.6 | ✅ |
+| Alertas para falhas no processamento de OS | E5.4, E5.7 | ✅ |
+| Logs JSON com correlação entre requisições | E5.1, E5.2 (gateway injeta `X-Correlation-Id`) | ✅ |
+| Dashboards: volume diário de OS, tempo médio por status (Diagnóstico, Execução, Finalização), erros nas integrações | E5.8 | ✅ |
+| Diagrama de componentes (nuvem, APIs, banco, monitoramento) | E6.1 | ✅ |
+| Diagramas de sequência: autenticação e abertura de OS | E6.2 | ✅ |
+| RFCs e ADRs | E6.3, E6.4 | ✅ |
+| Justificativa do banco, ajustes no modelo relacional, ER e relacionamentos | E6.5, E4.1, E4.1b (D23) | ✅ |
+| Dockerfiles, pipelines funcionais, links dos deploys ativos | E4, E7.1 | ✅ |
+| README de cada repo: propósito, tecnologias, execução/deploy, diagrama do repo, link Swagger/Postman | E1.8, E2.5, E3.6, E4.8, E7.1 | ✅ |
+| Vídeo até 15 min (CPF, pipeline, deploy, APIs protegidas, dashboard ao vivo, logs e traces) | E7.2 | ✅ |
+| PDF único com links e confirmação do `soat-architecture` | E7.3; convites enviados em E0.3 | ✅ PDF gerado; colaborador verificado em 2026-10-29 |
 | Desafio: "soluções serverless para autenticação **e notificações**" | D11 (reconfirmada): fora do escopo; justificativa em ADR (E6.4) | ⚠️ escolha consciente |
 
 ## 5.2 Cronograma até a entrega (revisto em 2026-10-25: **entrega em 30/10, tentando 29/10**)
@@ -320,19 +320,27 @@ Modo de trabalho combinado em 2026-10-12: ações no GitHub são executadas pelo
   - [x] Isolamento homolog × prod: usuários de homolog sem CONNECT em `tech_challenge_prod`; **token de homolog recusado em prod** (403)
   - [x] **Teste ponta a ponta em prod: 12/12 OK**; login de funcionário em prod; senha de demonstração aplicada em prod (não versionada)
   - [x] HPA de prod ajustado para só CPU (D37) — commit na `feature/e7-readme`, ainda não aplicado
-- [ ] E5 — Observabilidade (em andamento)
+- [x] E5 — Observabilidade
   - [x] (2026-10-25) App, `74410bf`: `CorrelationIdFilter`, logs JSON (ECS) na nuvem, `TelemetriaAtendimentoPort` + `NewRelicTelemetriaAdapter` (eventos `OrdemServicoCriada`, `OrdemServicoStatusAlterado` com `segundosNoStatusAnterior`, `OrdemServicoFalha`, `IntegracaoFalha`), agente Java 9.5.0 no Dockerfile (hash conferido; liga só com a license key), `newrelic.yml`. Suíte 788/0/0
   - [x] infra-k8s, `d547a5e` (branch `feature/e5-newrelic-k8s`): `nri-bundle` 8.0.36 no stack shared (infra, kube-state-metrics, eventos, metadata injection; sem logs de pod; lowDataMode), só com `TF_VAR_newrelic_license_key` (vem do secret no CI). **Só o CI consegue aplicar** (a chave não está local) e o shared só é aplicado pela `main`
   - [x] `docs/observabilidade/`: dashboard pronto para importar (3 páginas, 18 widgets NRQL na conta 8662599) e guia de monitores de uptime e das 6 condições de alerta
   - [x] (2026-10-28, usuário, na interface — P10) **Dashboard importado**, **monitores de uptime** `oficina-health-homolog`/`oficina-health-prod` e **as 6 condições de alerta** criados
   - [x] Ajuste descoberto ao criar: a condição de **taxa** de erro (`percentage`) não salva sem tráfego ("No value returned from NRQL query"); substituída por **contagem** de `TransactionError` (> 5 por 5 min). Guia atualizado com valor/modo/janela no formato da tela (branch `feature/e6-alertas`)
-  - [ ] Workflow de notificação por e-mail na política de alertas (usuário)
-- [ ] E6 — Documentação de arquitetura (em andamento, branch `feature/e6-docs`)
+  - [x] Workflow de notificação por e-mail na política de alertas (usuário, 2026-10-29)
+- [x] E6 — Documentação de arquitetura
   - [x] 11 ADRs e 5 RFCs (`9e31505`)
   - [x] Diagrama de componentes + sequências de autenticação por CPF e abertura de OS (`f1d4a0c`), Mermaid validado
-  - [ ] Modelo de dados (justificativa, ER, relacionamentos, ajustes) após a E4.1b
+  - [x] Modelo de dados (justificativa, ER, relacionamentos, ajustes): `docs/banco/modelo-de-dados.md`
   - [ ] Revisar diagramas e ADR-007 ao final da E4/E5 (HPA de homolog, eventos de OS)
 - [ ] E7 — Entrega
+  - [x] READMEs dos 4 repositórios e Postman do gateway
+  - [x] (2026-10-29) `soat-architecture` colaborador nos 4 repositórios (verificado)
+  - [x] (2026-10-30) Vídeo gravado com deploy ao vivo em homolog; nós desligados em seguida (node group em 0)
+  - [x] (2026-10-31) Vídeo publicado: https://youtu.be/RW36Jy7zxkI (usuário confirmou upload; ainda em processamento no YouTube)
+  - [x] (2026-10-31) PDF de entrega gerado fora do repositório (`C:UsersDanielpostechentregaentrega-fase3.pdf`)
+  - [ ] Link do vídeo no README até a `main`
+  - [ ] Enviar o PDF (usuário)
+  - [ ] Decidir o destino da infraestrutura após a entrega (D31)
 
 ## 7. Sugestões fora do escopo do PDF
 
